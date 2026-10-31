@@ -1,0 +1,13 @@
+pkgname=firegila
+pkgver=@VERSION@
+pkgrel=@REVISION@
+pkgdesc="Firefox ESR based web browser"
+arch=('x86_64')
+url="https://firegila.org/"
+license=('MPL-2.0')
+depends=(@DEPENDS@)
+options=('!strip' '!debug')
+
+package() {
+  cp -a "@STAGE@"/. "$pkgdir"/
+}

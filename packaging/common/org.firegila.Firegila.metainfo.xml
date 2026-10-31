@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.firegila.Firegila</id>
+  <name>Firegila</name>
+  <summary>Neutral web browser based on Firefox ESR</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MPL-2.0</project_license>
+  <description>
+    <p>
+      Firegila is a repackage of Firefox ESR with a neutral theme, a workspace
+      switcher, website panels and no Mozilla telemetry, Pocket, VPN or
+      sponsored content.
+    </p>
+  </description>
+  <launchable type="desktop-id">firegila.desktop</launchable>
+  <url type="homepage">https://firegila.org/</url>
+  <developer id="org.firegila">
+    <name>Firegila</name>
+  </developer>
+  <provides>
+    <binary>firegila</binary>
+  </provides>
+  <releases>
+    <release version="0.1.0" date="2026-10-31"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>

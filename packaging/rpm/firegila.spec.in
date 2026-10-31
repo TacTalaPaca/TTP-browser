@@ -1,0 +1,50 @@
+%global debug_package %{nil}
+%global _build_id_links none
+
+Name:           firegila
+Version:        @VERSION@
+Release:        @REVISION@%{?dist}
+Summary:        Firefox ESR based web browser
+License:        MPL-2.0
+URL:            https://firegila.org/
+Source0:        firegila-%{version}.tar.gz
+BuildArch:      x86_64
+AutoReqProv:    no
+Requires:       @DEPENDS@
+
+%description
+Firegila is a repackage of Firefox ESR with a neutral theme,
+a workspace switcher, website panels and no Mozilla telemetry,
+Pocket, VPN or sponsored content.
+
+%prep
+%setup -q
+
+%install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}
+cp -a . %{buildroot}/
+
+%post
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database -q /usr/share/applications >/dev/null 2>&1 || :
+fi
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+  gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor >/dev/null 2>&1 || :
+fi
+
+%postun
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database -q /usr/share/applications >/dev/null 2>&1 || :
+fi
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+  gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor >/dev/null 2>&1 || :
+fi
+
+%files
+/usr/lib/firegila
+/usr/bin/firegila
+/usr/share/applications/firegila.desktop
+/usr/share/icons/hicolor
+/usr/share/metainfo/org.firegila.Firegila.metainfo.xml
+/usr/share/doc/firegila

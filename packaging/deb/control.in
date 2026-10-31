@@ -1,0 +1,13 @@
+Package: firegila
+Version: @VERSION@-@REVISION@
+Section: web
+Priority: optional
+Architecture: @ARCH@
+Maintainer: Firegila <firegila@localhost>
+Installed-Size: @SIZE@
+Depends: @DEPENDS@
+Homepage: https://firegila.org/
+Description: Firefox ESR based web browser
+ Firegila is a repackage of Firefox ESR with a neutral theme,
+ a workspace switcher, website panels and no Mozilla telemetry,
+ Pocket, VPN or sponsored content.
