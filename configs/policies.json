@@ -1,0 +1,146 @@
+{
+  "policies": {
+    "DisableTelemetry": true,
+    "DisableFirefoxStudies": true,
+    "DisableCrashReporter": true,
+    "DisablePocket": true,
+    "DisableFeedbackCommands": true,
+    "DisableAppUpdate": true,
+    "DisableFirefoxScreenshots": false,
+
+    "GenerativeAI": {
+      "Enabled": false,
+      "Chatbot": false,
+      "SmartWindow": false,
+      "LinkPreviews": false,
+      "TabGroups": false,
+      "Locked": true
+    },
+
+    "AIControls": {
+      "Default": { "Value": "blocked", "Locked": true },
+      "Translations": { "Value": "blocked", "Locked": true },
+      "PDFAltText": { "Value": "blocked", "Locked": true },
+      "SmartTabGroups": { "Value": "blocked", "Locked": true },
+      "LinkPreviewKeyPoints": { "Value": "blocked", "Locked": true },
+      "SidebarChatbot": { "Value": "blocked", "Locked": true },
+      "SmartWindow": { "Value": "blocked", "Locked": true }
+    },
+
+    "FirefoxHome": {
+      "Pocket": false,
+      "SponsoredPocket": false,
+      "SponsoredTopSites": false,
+      "SponsoredStories": false,
+      "TopSites": true,
+      "Stories": false
+    },
+
+    "UserMessaging": {
+      "ExtensionRecommendations": false,
+      "FeatureRecommendations": false,
+      "UrlbarInterventions": false,
+      "SkipOnboarding": true,
+      "MoreFromMozilla": false
+    },
+
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+
+    "SearchEngines": {
+      "Add": [
+        {
+          "Name": "Ecosia",
+          "URLTemplate": "https://www.ecosia.org/search?q={searchTerms}",
+          "Method": "GET",
+          "IconURL": "https://www.ecosia.org/favicon.ico"
+        }
+      ],
+      "Remove": ["Bing", "Wikipedia (en)", "Perplexity"],
+      "Default": "DuckDuckGo"
+    },
+
+    "Preferences": {
+      "toolkit.telemetry.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "toolkit.telemetry.unified": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "datareporting.healthreport.uploadEnabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "app.normandy.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "app.shield.optoutstudies.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "crashreporter.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.preferences.aiControls": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.preferences.experimental.hidden": {
+        "Value": true,
+        "Status": "locked"
+      },
+      "extensions.htmlaboutaddons.recommendations.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.newtabpage.activity-stream.default.sites": {
+        "Value": "",
+        "Status": "locked"
+      },
+      "browser.newtabpage.activity-stream.improvesearch.topSiteSearchShortcuts": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.topsites.useRemoteSetting": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.topsites.contile.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.newtabpage.activity-stream.topSitesMaxSitesPerRow": {
+        "Value": 8,
+        "Status": "locked"
+      },
+      "browser.urlbar.quicksuggest.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.urlbar.quicksuggest.rustEnabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.urlbar.suggest.quicksuggest.sponsored": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "browser.urlbar.suggest.quicksuggest.nonsponsored": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "privacy.userContext.enabled": {
+        "Value": false,
+        "Status": "locked"
+      },
+      "privacy.userContext.ui.enabled": {
+        "Value": false,
+        "Status": "locked"
+      }
+    }
+  }
+}

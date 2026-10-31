@@ -1,0 +1,56 @@
+#!/bin/sh
+# Dev runner. Not shipped, package.sh only copies build/firefox.
+set -eu
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+LAUNCHER="$ROOT/build/firefox/firegila"
+PROFILE="${FG_PROFILE:-/tmp/firegila-dev}"
+BUILD=0
+KEEP=0
+PROFILE_SET=0
+
+usage() {
+  echo "Usage: ./dev [--build] [--keep] [/profile/dir] [browser args]"
+  echo ""
+  echo "  --build   run customize.sh first"
+  echo "  --keep    reuse the profile instead of wiping it"
+  echo "  /dir      profile directory, any other argument goes to the browser"
+  echo ""
+  echo "  Default profile: FG_PROFILE, else /tmp/firegila-dev"
+}
+
+n=$#
+i=0
+while [ "$i" -lt "$n" ]; do
+  a="$1"
+  shift
+  case "$a" in
+    --build) BUILD=1 ;;
+    --keep) KEEP=1 ;;
+    -h | -help | --help) usage; exit 0 ;;
+    /*)
+      if [ "$PROFILE_SET" -eq 0 ]; then
+        PROFILE="$a"
+        PROFILE_SET=1
+      else
+        set -- "$@" "$a"
+      fi
+      ;;
+    *) set -- "$@" "$a" ;;
+  esac
+  i=$((i + 1))
+done
+
+if [ "$BUILD" -eq 1 ]; then
+  "$ROOT/scripts/customize.sh"
+fi
+
+[ -x "$LAUNCHER" ] || { echo "dev: run scripts/customize.sh first"; exit 1; }
+
+if [ "$KEEP" -eq 0 ]; then
+  rm -rf "$PROFILE"
+fi
+mkdir -p "$PROFILE"
+
+echo "dev: profile $PROFILE"
+exec "$LAUNCHER" --no-remote --profile "$PROFILE" "$@"
