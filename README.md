@@ -179,8 +179,9 @@ changes are overlays on the unpacked tarball, applied by
 - Add and edit shortcut dialogs fade and scale in on open and out on close.
 - Settings loses the sponsored shortcuts, sponsored stories, support promo
   and recent activity sections.
-- Default bookmarks ship empty, so new profiles start clean. Added bookmarks
-  suggest and sync normally.
+- Default bookmarks ship empty, so new profiles start clean. Profiles made
+  before 0.1.1 lose the four stock Mozilla defaults once on first start;
+  user bookmarks are left alone. Added bookmarks suggest and sync normally.
 
 ### Theme
 

@@ -3170,6 +3170,89 @@ SB_BOOTSTRAP_JS = """
   const PANEL_WIDTH_PREF = "firegila.sidebar.width";
   const AUTO_HIDE_PREF = "firegila.sidebar.autoHideTabs";
   const OPPOSITE_PREF = "firegila.sidebar.tabsOpposite";
+  const DEFAULT_BOOKMARKS_PREF = "firegila.migration.defaultBookmarks";
+  const STOCK_DEFAULT_BOOKMARKS = [
+    ["Get Help", "https://support.mozilla.org/products/firefox"],
+    [
+      "Customize Firefox",
+      "https://support.mozilla.org/kb/customize-firefox-controls-buttons-and-toolbars",
+    ],
+    ["Get Involved", "https://www.mozilla.org/contribute/"],
+    ["About Us", "https://www.mozilla.org/about/"],
+  ];
+
+  // Profiles made before the default bookmarks patch still carry the four
+  // Mozilla defaults in a "Mozilla Firefox" folder under the bookmarks menu.
+  // Remove exactly those once, so upgrades match a fresh install. User
+  // bookmarks are left alone, the folder is dropped only when it ends empty.
+  async function migrateDefaultBookmarks() {
+    if (Services.prefs.getBoolPref(DEFAULT_BOOKMARKS_PREF, false)) {
+      return;
+    }
+    try {
+      const { PlacesUtils } = ChromeUtils.importESModule(
+        "resource://gre/modules/PlacesUtils.sys.mjs"
+      );
+      const bookmarks = PlacesUtils.bookmarks;
+
+      const children = async guid => {
+        const nodes = [];
+        await bookmarks.fetch({ parentGuid: guid }, node => nodes.push(node));
+        return nodes;
+      };
+
+      const stockFolders = [];
+      const removeStock = async guid => {
+        for (const node of await children(guid)) {
+          if (node.type === bookmarks.TYPE_FOLDER) {
+            if (node.title === "Mozilla Firefox") {
+              stockFolders.push(node.guid);
+            }
+            if (!(await removeStock(node.guid))) {
+              return false;
+            }
+            continue;
+          }
+          if (node.type !== bookmarks.TYPE_BOOKMARK || !node.url) {
+            continue;
+          }
+          const stock = STOCK_DEFAULT_BOOKMARKS.some(
+            ([title, url]) =>
+              node.title === title && node.url.href.startsWith(url)
+          );
+          if (!stock) {
+            continue;
+          }
+          try {
+            await bookmarks.remove(node.guid);
+          } catch (e) {
+            // Places is busy. Retry on the next start.
+            return false;
+          }
+        }
+        return true;
+      };
+
+      for (const guid of [bookmarks.menuGuid, bookmarks.toolbarGuid]) {
+        if (!(await removeStock(guid))) {
+          return;
+        }
+      }
+      for (const guid of stockFolders) {
+        if ((await children(guid)).length) {
+          continue;
+        }
+        try {
+          await bookmarks.remove(guid);
+        } catch (e) {
+          return;
+        }
+      }
+      Services.prefs.setBoolPref(DEFAULT_BOOKMARKS_PREF, true);
+    } catch (e) {
+      // Places is not ready yet. Retry on the next start.
+    }
+  }
 
   function publishMotion() {
     const computed = getComputedStyle(document.documentElement);
@@ -3258,6 +3341,7 @@ SB_BOOTSTRAP_JS = """
     publishNavbarMetrics();
     persistPanelWidth();
     syncTabStripExpanded();
+    migrateDefaultBookmarks();
     watchSidebarHidden();
     watchRevealLeave();
     watchEdgeSensor();
