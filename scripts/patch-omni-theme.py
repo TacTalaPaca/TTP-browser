@@ -151,6 +151,12 @@ GLOBAL_OVERRIDE_CSS = (
     + "    --fg-motion-base: 180ms;\n"
     + "    --fg-motion-slow: 260ms;\n"
     + "    --fg-ease: ease;\n"
+    + "    --fg-press-down: 90ms;\n"
+    + "    --fg-press-up: 220ms;\n"
+    + "    --fg-press-ease: cubic-bezier(0.2, 0, 0, 1);\n"
+    + "    --fg-press-ease-down: cubic-bezier(0.3, 0, 0.2, 1);\n"
+    + "    --fg-fade: 140ms;\n"
+    + "    --fg-fade-label: 160ms;\n"
     + "    --toolbar-field-text-color-focus: light-dark(#171717, #fafafa);\n"
     # The system theme keeps these out of the override because the native
     # platform sets them. Pin them so both theme choices match.
@@ -697,6 +703,15 @@ NEWTAB_PALETTE_CSS = """
 
 # Solid accent for newtab action buttons. Appended to both newtab files.
 NEWTAB_BUTTONS_CSS = """
+/* Press motion tokens. Same names as the chrome theme. */
+:root {
+  --fg-press-down: 90ms;
+  --fg-press-up: 220ms;
+  --fg-press-ease: cubic-bezier(0.2, 0, 0, 1);
+  --fg-press-ease-down: cubic-bezier(0.3, 0, 0.2, 1);
+  --fg-fade: 140ms;
+  --fg-fade-label: 160ms;
+}
 /* Firegila newtab action buttons. Darker neutral fill in dark mode. */
 .personalize-button,
 .lightWallpaper .personalize-button,
@@ -757,42 +772,42 @@ NEWTAB_BUTTONS_CSS = """
  * is slower, so a short click still plays the full scale down and back. */
 @media (prefers-reduced-motion: no-preference) {
   .personalize-button {
-    transition: background-color 140ms ease;
+    transition: background-color var(--fg-fade) var(--fg-press-ease);
   }
   .personalize-button > label {
     transition:
-      opacity 160ms ease,
-      margin 220ms cubic-bezier(0.2, 0, 0, 1),
-      max-width 220ms cubic-bezier(0.2, 0, 0, 1);
+      opacity var(--fg-fade-label) var(--fg-press-ease),
+      margin var(--fg-press-up) var(--fg-press-ease),
+      max-width var(--fg-press-up) var(--fg-press-ease);
   }
   .personalize-button > div > img,
   .fg-wallpaper-remove {
-    transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+    transition: transform var(--fg-press-up) var(--fg-press-ease);
   }
   .personalize-button:active > div > img,
   .fg-wallpaper-remove:active {
     transform: scale(0.9);
-    transition-duration: 90ms;
-    transition-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
+    transition-duration: var(--fg-press-down);
+    transition-timing-function: var(--fg-press-ease-down);
   }
   .open-customization-button::part(button) {
     transition:
-      max-width 220ms cubic-bezier(0.2, 0, 0, 1),
-      gap 220ms cubic-bezier(0.2, 0, 0, 1),
-      background-color 140ms ease;
+      max-width var(--fg-press-up) var(--fg-press-ease),
+      gap var(--fg-press-up) var(--fg-press-ease),
+      background-color var(--fg-fade) var(--fg-press-ease);
   }
   .open-customization-button::part(moz-button-label) {
     transition:
-      opacity 160ms ease,
-      max-width 220ms cubic-bezier(0.2, 0, 0, 1);
+      opacity var(--fg-fade-label) var(--fg-press-ease),
+      max-width var(--fg-press-up) var(--fg-press-ease);
   }
   .wallpaper-input.theme-custom-wallpaper::after {
-    transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+    transition: transform var(--fg-press-up) var(--fg-press-ease);
   }
   .wallpaper-input.theme-custom-wallpaper:active::after {
     transform: translate(-50%, -50%) scale(0.85);
-    transition-duration: 90ms;
-    transition-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
+    transition-duration: var(--fg-press-down);
+    transition-timing-function: var(--fg-press-ease-down);
   }
 }
 .top-site-outer .context-menu-button:hover {
@@ -2546,19 +2561,26 @@ REMOVE_DIRS_BROWSER = [
 # the active tab sits above them with a full accent border.
 # Unlayered beats token layers.
 TAB_CSS = """
+:root {
+  --fg-tab-border: light-dark(#d0d0d0, #232323);
+  --fg-tab-bg: light-dark(#ededed, #1d1d1d);
+  --fg-tab-bg-hover: light-dark(#d9d9d9, #383838);
+  --fg-tab-bg-opposite: light-dark(#ededed, #1f1f1f);
+  --fg-tab-bg-opposite-hover: light-dark(#cccccc, #383838);
+}
 :root:not([lwtheme]) {
   --tab-background-color-selected: light-dark(#ffffff, #333333);
-  --tab-background-color-hover: light-dark(#d9d9d9, #383838);
+  --tab-background-color-hover: var(--fg-tab-bg-hover);
   --tab-selected-textcolor: light-dark(#171717, #fafafa);
-  --tab-border-color-accent: AccentColor;
+  --tab-border-color-accent: var(--fg-tab-border);
   --tab-selected-shadow: none;
 }
 .tabbrowser-tab:not([selected], [multiselected]) > .tab-stack > .tab-background {
-  background-color: light-dark(#ededed, #1d1d1d);
-  border: 1px solid light-dark(#d0d0d0, #232323);
+  background-color: var(--fg-tab-bg);
+  border: 1px solid var(--fg-tab-border);
 }
 .tabbrowser-tab[selected] > .tab-stack > .tab-background {
-  border: 1px solid AccentColor;
+  border: 1px solid var(--fg-tab-border);
 }
 #tabbrowser-tabs[orient="horizontal"]::before {
   display: none !important;
@@ -2572,7 +2594,7 @@ TAB_CSS = """
 }
 :root {
   --chrome-content-separator-color: var(--fg-border);
-  --tabs-navbar-separator-color: var(--fg-border);
+  --tabs-navbar-separator-color: var(--fg-tab-border);
   --toolbarseparator-color: var(--fg-border);
   --theme-toolbar-separator: var(--fg-border);
 }
@@ -3212,18 +3234,18 @@ SB_CHROME_CSS = """
  * border keep the same separation as before. */
 
 :root[fg-tabs-opposite] .tabbrowser-tab:not([selected], [multiselected]) > .tab-stack > .tab-background {
-  border-color: light-dark(#c4c4c4, #2e2e2e);
+  border-color: var(--fg-tab-border);
 }
 
 /* Not on hover, so the stock hover rule still wins. */
 
 :root[fg-tabs-opposite] .tabbrowser-tab:not([selected], [multiselected]):not(:hover) > .tab-stack > .tab-background {
-  background-color: light-dark(#ededed, #1f1f1f);
+  background-color: var(--fg-tab-bg-opposite);
 }
 
 @media -moz-pref("sidebar.verticalTabs") {
   :root[fg-tabs-opposite]:not([lwtheme]) {
-    --tab-background-color-hover: light-dark(#cccccc, #383838);
+    --tab-background-color-hover: var(--fg-tab-bg-opposite-hover);
   }
 }
 
@@ -3324,14 +3346,14 @@ SB_CHROME_CSS = """
 @media (prefers-reduced-motion: no-preference) {
   .tab-close-button,
   .button-icon {
-    transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+    transition: transform var(--fg-press-up) var(--fg-press-ease);
   }
 
   .tab-close-button:active,
   button:active > .button-icon {
     transform: scale(0.9);
-    transition-duration: 90ms;
-    transition-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
+    transition-duration: var(--fg-press-down);
+    transition-timing-function: var(--fg-press-ease-down);
   }
 }
 
@@ -3468,24 +3490,24 @@ SB_CHROME_CSS = """
   margin-block: 4px;
   margin-inline: 4px 2px;
   padding: 0 8px;
-  border: 1px solid light-dark(#d0d0d0, #232323);
+  border: 1px solid var(--fg-tab-border);
   border-radius: 8px;
-  background-color: light-dark(#ededed, #1d1d1d);
+  background-color: var(--fg-tab-bg);
   color: var(--fg-text);
 }
 
 #firegila-workspaces:hover {
-  background-color: light-dark(#d9d9d9, #383838);
+  background-color: var(--fg-tab-bg-hover);
 }
 
 /* Same shift as the background tabs when the strip sits on the other side. */
 
 :root[fg-tabs-opposite] .toolbar-items > #firegila-workspaces {
-  background-color: light-dark(#ededed, #1f1f1f);
+  background-color: var(--fg-tab-bg-opposite);
 }
 
 :root[fg-tabs-opposite] .toolbar-items > #firegila-workspaces:hover {
-  background-color: light-dark(#d9d9d9, #383838);
+  background-color: var(--fg-tab-bg-hover);
 }
 
 /* The stock icon slot is empty here. Hide it so the label and the chevron sit
@@ -3550,13 +3572,13 @@ SB_CHROME_CSS = """
   max-width: none;
   margin: 2px;
   padding-inline: 8px;
-  border: 1px solid light-dark(#d0d0d0, #232323);
+  border: 1px solid var(--fg-tab-border);
   border-radius: 8px;
-  background-color: light-dark(#ededed, #1d1d1d);
+  background-color: var(--fg-tab-bg);
 }
 
 #vertical-tabs-container > #firegila-workspaces:hover {
-  background-color: light-dark(#d9d9d9, #383838);
+  background-color: var(--fg-tab-bg-hover);
 }
 
 /* The workspace list uses the app surfaces, not the GTK menu colors, so it
@@ -5834,13 +5856,17 @@ MOZ_BUTTON_PRESS_CSS = """
 
 @media (prefers-reduced-motion: no-preference) {
   .button-background img {
-    transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+    transition: transform var(--fg-press-up, 220ms)
+      var(--fg-press-ease, cubic-bezier(0.2, 0, 0, 1));
   }
 
   #main-button:active .button-background img {
     transform: scale(0.9);
-    transition-duration: 90ms;
-    transition-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
+    transition-duration: var(--fg-press-down, 90ms);
+    transition-timing-function: var(
+      --fg-press-ease-down,
+      cubic-bezier(0.3, 0, 0.2, 1)
+    );
   }
 }
 """

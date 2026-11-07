@@ -110,6 +110,17 @@ pref("firegila.sidebar.webPanels", "[]");
 pref("dom.security.https_only_mode", true);
 pref("privacy.query_stripping.enabled", true);
 
+// Session restore
+// Reopen the same windows, tabs and workspaces on the next start. Hidden
+// workspace tabs are restored too, not skipped or loaded on demand. These
+// are defaults, so the user can still choose a fresh start in settings.
+pref("browser.startup.page", 3);
+pref("browser.sessionstore.resume_from_crash", true);
+pref("browser.sessionstore.newTabOnRestore", false);
+pref("browser.sessionstore.restore_on_demand", false);
+pref("browser.sessionstore.restore_hidden_tabs", true);
+pref("browser.sessionstore.restore_pinned_tabs_on_demand", false);
+
 // Keep data on exit
 pref("browser.privatebrowsing.autostart", false);
 pref("privacy.sanitize.sanitizeOnShutdown", false);

@@ -206,6 +206,8 @@ changes are overlays on the unpacked tarball, applied by
   to the sidebar.
 - The tab strip has no list all tabs button and no Firefox View button by
   default. Both are out of the default layout.
+- Selected and inactive tabs share one neutral border color. The system
+  accent stays on focus rings and controls, not on tab borders.
 - Urlbar row hover and selected states follow the neutral ramp. Text fields,
   selects and dropdowns get a single border, accent on focus.
 
@@ -213,6 +215,9 @@ changes are overlays on the unpacked tarball, applied by
 
 - Scroll over the tab strip switches tabs, and over the workspace switcher
   switches workspaces. Middle click starts autoscroll. All on by default.
+- Session restore is on by default. The next start reopens the same windows
+  and tabs, including tabs hidden in other workspaces, and loads them all.
+  Users can still choose a fresh start in settings.
 
 ### Privacy, AI and content defaults
 

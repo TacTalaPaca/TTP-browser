@@ -93,3 +93,9 @@ sources/             upstream tarball, ignored
 - Anchor root ignore patterns, so `scripts/packages/` stays tracked.
 - Run `scripts/check-commit.sh` before commit.
 - Leave the working tree clean after a release.
+
+## 8. Code
+
+- Use CSS variables for repeated colors, timings, sizes and spacing.
+- Use JS constants for repeated pref names, selectors and values.
+- Keep one definition for a value used in more than one place.
