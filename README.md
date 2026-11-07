@@ -41,7 +41,7 @@ Quick start:
 ./scripts/customize.sh
 ./build/firefox/firegila --no-remote --profile /tmp/firegila-check
 ./scripts/package.sh
-./scripts/install.sh packages/0.1.0/firegila-0.1.0-linux-x86_64.tar.xz
+./scripts/install.sh packages/<version>/firegila-<version>-linux-x86_64.tar.xz
 firegila
 ```
 

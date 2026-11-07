@@ -144,8 +144,8 @@ cache lives in `build/tools/`, also gitignored.
 
 ## Versions and releases
 
-- `VERSION` is the Firegila release, currently `0.1.0`.
-- `ESR_VERSION` is the Firefox base, currently `153.5.1esr`.
+- `VERSION` is the Firegila release.
+- `ESR_VERSION` is the Firefox base.
 - Every release gets its own `packages/<VERSION>/` folder. A new product
   release is a new `VERSION`, a new folder, and a new `v<VERSION>` tag.
 - `scripts/check-commit.sh` runs before a commit. It fails on tracked ignored
