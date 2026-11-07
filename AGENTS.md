@@ -68,6 +68,15 @@ sources/             upstream tarball, ignored
 - Commit names describe the change. The version lives in `VERSION` and the tag, not in the commit subject.
 - Keep the repository local unless the user asks to push.
 
+### Release approval
+
+- Ask the user before rebuilding an existing `packages/<VERSION>/`.
+- Ask the user before bumping `VERSION`.
+- Ask the user before leaving a change unreleased.
+- The user decides: rebuild the same version, bump the version, or do not repackage yet.
+- Do not replace release files, move release tags, or rewrite release history without approval.
+- After approval, rebuild from the final commit so `BUILDINFO` matches HEAD.
+
 ## 6. Defaults and migrations
 
 - Product prefs go in `configs/firegila.js`.
