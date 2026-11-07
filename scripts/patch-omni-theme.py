@@ -725,6 +725,76 @@ NEWTAB_BUTTONS_CSS = """
   color: var(--fg-text) !important;
   fill: currentColor;
 }
+/* Nova wraps the customize button in moz-button, so the fill lives in a
+ * shadow part. Stock sets --button-background-color to transparent and the
+ * button disappears over a wallpaper. The part is centered and fixed to the
+ * same height in both states, so only the label width changes. */
+.open-customization-button::part(button) {
+  background-color: var(--fg-bg-3) !important;
+  color: var(--fg-text) !important;
+  fill: currentColor;
+  border: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-small) !important;
+}
+.open-customization-button::part(moz-button-label) {
+  color: var(--fg-text) !important;
+}
+.open-customization-button:hover::part(button) {
+  background-color: var(--fg-hover) !important;
+}
+.open-customization-button:active::part(button),
+.open-customization-button:focus-visible::part(button),
+.open-customization-button:focus-within::part(button) {
+  background-color: var(--fg-active) !important;
+}
+.open-customization-button:focus-visible::part(button) {
+  outline: 1px solid AccentColor !important;
+  outline-offset: 1px;
+}
+/* One press curve for every button icon. The press is quick and the release
+ * is slower, so a short click still plays the full scale down and back. */
+@media (prefers-reduced-motion: no-preference) {
+  .personalize-button {
+    transition: background-color 140ms ease;
+  }
+  .personalize-button > label {
+    transition:
+      opacity 160ms ease,
+      margin 220ms cubic-bezier(0.2, 0, 0, 1),
+      max-width 220ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  .personalize-button > div > img,
+  .fg-wallpaper-remove {
+    transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  .personalize-button:active > div > img,
+  .fg-wallpaper-remove:active {
+    transform: scale(0.9);
+    transition-duration: 90ms;
+    transition-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
+  }
+  .open-customization-button::part(button) {
+    transition:
+      max-width 220ms cubic-bezier(0.2, 0, 0, 1),
+      gap 220ms cubic-bezier(0.2, 0, 0, 1),
+      background-color 140ms ease;
+  }
+  .open-customization-button::part(moz-button-label) {
+    transition:
+      opacity 160ms ease,
+      max-width 220ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  .wallpaper-input.theme-custom-wallpaper::after {
+    transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  .wallpaper-input.theme-custom-wallpaper:active::after {
+    transform: translate(-50%, -50%) scale(0.85);
+    transition-duration: 90ms;
+    transition-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
+  }
+}
 .top-site-outer .context-menu-button:hover {
   background-color: var(--color-accent-primary) !important;
   fill: AccentColorText;
@@ -1551,6 +1621,162 @@ class _TopSites extends (external_React_default()).PureComponent {"""),
          """      if (false) {
         slotProps.className = "nova-hide-for-s";
       }"""),
+        # Wallpaper uploads. Stock keeps one custom image. The list pref keeps
+        # several, shown as a grid in the custom wallpaper subpanel. The
+        # subpanel already scrolls, so only the slots are added.
+        ("""      case "firefox":
+        fluent_id = "newtab-wallpaper-category-title-firefox";
+        break;
+    }
+    this.setState({
+      activeCategoryFluentID: fluent_id
+    });""",
+         """      case "firefox":
+        fluent_id = "newtab-wallpaper-category-title-firefox";
+        break;
+      case "custom-wallpaper":
+        fluent_id = "newtab-wallpaper-title";
+        break;
+    }
+    this.setState({
+      activeCategoryFluentID: fluent_id
+    });"""),
+        ("""  handleWallpaperListEntered() {
+    this.arrowButtonRef.current?.focus();
+  }
+
+  // Record user interaction when changing wallpaper and reseting wallpaper to default""",
+         """  handleWallpaperListEntered() {
+    this.arrowButtonRef.current?.focus();
+  }
+
+  handleUploadedSelect(uuid, theme) {
+    this.props.setPref("newtabWallpapers.customWallpaper.uuid", uuid);
+    this.props.setPref(
+      "newtabWallpapers.customWallpaper.theme",
+      theme || "dark"
+    );
+    this.props.setPref("newtabWallpapers.wallpaper", "custom");
+    this.props.setPref("newtabWallpapers.initialWallpaper", "");
+    this.props.setPref("newtabWallpapers.user.enabled", true);
+  }
+
+  handleUploadedRemove(event, uuid) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.props.dispatch(
+      actionCreators.OnlyToMain({
+        type: actionTypes.WALLPAPER_REMOVE_UPLOAD,
+        data: { uuid },
+      })
+    );
+  }
+
+  // Record user interaction when changing wallpaper and reseting wallpaper to default"""),
+        ("""    const wallpapersUserEnabled = prefs["newtabWallpapers.user.enabled"];
+    const selectedWallpaper = prefs["newtabWallpapers.wallpaper"];""",
+         """    const wallpapersUserEnabled = prefs["newtabWallpapers.user.enabled"];
+    const selectedWallpaper = prefs["newtabWallpapers.wallpaper"];
+    let uploadedWallpapers = [];
+    try {
+      uploadedWallpapers = JSON.parse(
+        prefs["newtabWallpapers.customWallpaper.list"] || "[]"
+      );
+    } catch (e) {
+      uploadedWallpapers = [];
+    }
+    if (!Array.isArray(uploadedWallpapers)) {
+      uploadedWallpapers = [];
+    }
+    uploadedWallpapers = uploadedWallpapers.filter(item => item && item.uuid);
+    const activeUuid = prefs["newtabWallpapers.customWallpaper.uuid"];
+    if (!uploadedWallpapers.length && activeUuid) {
+      uploadedWallpapers = [
+        {
+          uuid: activeUuid,
+          theme: prefs["newtabWallpapers.customWallpaper.theme"] || "dark",
+        },
+      ];
+    }"""),
+        ("""        const activeWallpaperObj = activeWallpaper && sortedList.find(wp => wp.title === activeWallpaper);
+        // Detect custom solid color
+        const isCustomSolidColor = category === "solid-colors" && activeWallpaper.startsWith("solid-color-picker");
+        const thumbnail = activeWallpaperObj || sortedList[0];""",
+         """        const activeWallpaperObj = activeWallpaper && sortedList.find(wp => wp.title === activeWallpaper);
+        // Detect custom solid color
+        const isCustomSolidColor = category === "solid-colors" && activeWallpaper.startsWith("solid-color-picker");
+        const customWallpaper = category === "custom-wallpaper" ? uploadedWallpapers.find(item => item.uuid === activeUuid) || uploadedWallpapers[0] : null;
+        const hasCustomWallpaper = !!customWallpaper;
+        const thumbnail = activeWallpaperObj || sortedList[0];"""),
+        ("""          case "custom-wallpaper":
+            // @nova-cleanup(remove-conditional): Remove novaEnabled conditional and always use newtab-wallpaper-add-an-image
+            fluent_id = novaEnabled ? "newtab-wallpaper-add-an-image" : "newtab-wallpaper-upload-image";
+            break;""",
+         """          case "custom-wallpaper":
+            // @nova-cleanup(remove-conditional): Remove novaEnabled conditional and always use newtab-wallpaper-add-an-image
+            fluent_id = hasCustomWallpaper ? "newtab-wallpaper-title" : novaEnabled ? "newtab-wallpaper-add-an-image" : "newtab-wallpaper-upload-image";
+            break;"""),
+        ("""        } else {
+          style.backgroundColor = thumbnail?.solid_color || "";
+        }""",
+         """        } else {
+          style.backgroundColor = thumbnail?.solid_color || "";
+        }
+        if (customWallpaper) {
+          style.backgroundImage = `url(moz-newtab-wallpaper://${customWallpaper.uuid})`;
+          style.backgroundPosition = "center";
+          style.backgroundColor = "";
+        }"""),
+        ("""        const isCategorySelected = wallpapersUserEnabled && (activeWallpaperObj || isCustomSolidColor);""",
+         """        const isCustomWallpaperActive = category === "custom-wallpaper" && selectedWallpaper === "custom";
+        const isCategorySelected = wallpapersUserEnabled && (activeWallpaperObj || isCustomSolidColor || isCustomWallpaperActive);"""),
+        ("""          className: `wallpaper-input
+                      ${category === "custom-wallpaper" ? "theme-custom-wallpaper" : ""}
+                      ${isCategorySelected ? "selected" : ""}`,""",
+         """          className: `wallpaper-input
+                      ${category === "custom-wallpaper" ? "theme-custom-wallpaper" : ""}
+                      ${customWallpaper ? "fg-has-upload" : ""}
+                      ${isCategorySelected ? "selected" : ""}`,"""),
+        ("""            if (category !== "custom-wallpaper") {
+              this.handleCategory(event);
+            } else {
+              this.handleUpload();
+            }""",
+         """            this.handleCategory(event);"""),
+        ("""      }), colorPickerInput)))))""",
+         """      }), activeCategory === "custom-wallpaper" ? [
+        ...uploadedWallpapers.map(item => /*#__PURE__*/external_React_default().createElement("div", {
+          className: "fg-wallpaper-slot",
+          key: `upload-${item.uuid}`
+        }, /*#__PURE__*/external_React_default().createElement("input", {
+          type: "radio",
+          name: `wallpaper-upload-${item.uuid}`,
+          id: `wallpaper-upload-${item.uuid}`,
+          className: "wallpaper-input fg-uploaded-wallpaper",
+          style: {
+            backgroundImage: `url(moz-newtab-wallpaper://${item.uuid})`
+          },
+          checked: selectedWallpaper === "custom" && item.uuid === activeUuid,
+          onChange: () => this.handleUploadedSelect(item.uuid, item.theme),
+          "aria-label": "Uploaded wallpaper"
+        }), /*#__PURE__*/external_React_default().createElement("button", {
+          type: "button",
+          className: "fg-wallpaper-remove",
+          title: "Remove wallpaper",
+          "aria-label": "Remove wallpaper",
+          onClick: event => this.handleUploadedRemove(event, item.uuid)
+        }))),
+        /*#__PURE__*/external_React_default().createElement("div", {
+          className: "fg-wallpaper-slot fg-wallpaper-add-slot",
+          key: "fg-add-wallpaper"
+        }, /*#__PURE__*/external_React_default().createElement("button", {
+          type: "button",
+          className: "wallpaper-input theme-custom-wallpaper fg-wallpaper-add",
+          title: "Add an image",
+          "aria-label": "Add an image",
+          onClick: this.handleUpload
+        }))
+      ] : colorPickerInput)))))"""),
     ],
     # New tab wallpapers. Firegila offers only the custom upload from the PC,
     # so the stock wallpaper records are not read. The category dispatch below
@@ -1599,6 +1825,292 @@ class _TopSites extends (external_React_default()).PureComponent {"""),
 
     const wallpapers = [];
 '''),
+        ('''const PREF_WALLPAPERS_CUSTOM_WALLPAPER_UUID =
+  "browser.newtabpage.activity-stream.newtabWallpapers.customWallpaper.uuid";''',
+         '''const PREF_WALLPAPERS_CUSTOM_WALLPAPER_UUID =
+  "browser.newtabpage.activity-stream.newtabWallpapers.customWallpaper.uuid";
+
+const PREF_WALLPAPERS_CUSTOM_WALLPAPER_THEME =
+  "browser.newtabpage.activity-stream.newtabWallpapers.customWallpaper.theme";
+
+const PREF_WALLPAPERS_CUSTOM_WALLPAPER_LIST =
+  "browser.newtabpage.activity-stream.newtabWallpapers.customWallpaper.list";
+
+const PREF_WALLPAPERS_CUSTOM_WALLPAPER_MAX =
+  "browser.newtabpage.activity-stream.newtabWallpapers.customWallpaper.max";'''),
+        ('''  // Constructs a moz-newtab-wallpaper:// URI for the given wallpaper UUID.
+  getWallpaperURL(uuid) {
+    return `moz-newtab-wallpaper://${uuid}`;
+  }''',
+         '''  // Constructs a moz-newtab-wallpaper:// URI for the given wallpaper UUID.
+  getWallpaperURL(uuid) {
+    return `moz-newtab-wallpaper://${uuid}`;
+  }
+
+  readUploadedWallpapers() {
+    let list = [];
+    try {
+      list = JSON.parse(
+        Services.prefs.getStringPref(PREF_WALLPAPERS_CUSTOM_WALLPAPER_LIST, "[]")
+      );
+    } catch (error) {
+      list = [];
+    }
+    if (!Array.isArray(list)) {
+      list = [];
+    }
+    list = list.filter(
+      item => item && typeof item.uuid === "string" && item.uuid
+    );
+    const currentUuid = Services.prefs.getStringPref(
+      PREF_WALLPAPERS_CUSTOM_WALLPAPER_UUID,
+      ""
+    );
+    if (currentUuid && !list.some(item => item.uuid === currentUuid)) {
+      list.push({
+        uuid: currentUuid,
+        theme:
+          Services.prefs.getStringPref(
+            PREF_WALLPAPERS_CUSTOM_WALLPAPER_THEME,
+            ""
+          ) || "dark",
+      });
+    }
+    return list;
+  }
+
+  writeUploadedWallpapers(list) {
+    Services.prefs.setStringPref(
+      PREF_WALLPAPERS_CUSTOM_WALLPAPER_LIST,
+      JSON.stringify(list)
+    );
+  }
+
+  async removeWallpaperFile(uuid) {
+    if (!uuid) {
+      return;
+    }
+    const wallpaperDir = PathUtils.join(PathUtils.profileDir, "wallpaper");
+    await IOUtils.remove(PathUtils.join(wallpaperDir, uuid), {
+      ignoreAbsent: true,
+    });
+  }'''),
+        ('''      let uuid = Services.uuid.generateUUID().toString().slice(1, -1);
+      Services.prefs.setStringPref(PREF_WALLPAPERS_CUSTOM_WALLPAPER_UUID, uuid);
+
+      const filePath = PathUtils.join(wallpaperDir, uuid);
+
+      // convert to Uint8Array for IOUtils
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      await IOUtils.write(filePath, uint8Array, { tmpPath: `${filePath}.tmp` });
+
+      const wallpaperURI = this.getWallpaperURL(uuid);''',
+         '''      let uuid = Services.uuid.generateUUID().toString().slice(1, -1);
+
+      const filePath = PathUtils.join(wallpaperDir, uuid);
+
+      // convert to Uint8Array for IOUtils
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      await IOUtils.write(filePath, uint8Array, { tmpPath: `${filePath}.tmp` });
+
+      const list = this.readUploadedWallpapers();
+      list.unshift({ uuid, theme: wallpaperTheme });
+      const max = Math.max(
+        1,
+        Services.prefs.getIntPref(PREF_WALLPAPERS_CUSTOM_WALLPAPER_MAX, 100)
+      );
+      while (list.length > max) {
+        const oldest = list.pop();
+        if (oldest.uuid !== uuid) {
+          await this.removeWallpaperFile(oldest.uuid);
+        }
+      }
+      this.writeUploadedWallpapers(list);
+      Services.prefs.setStringPref(PREF_WALLPAPERS_CUSTOM_WALLPAPER_UUID, uuid);
+
+      const wallpaperURI = this.getWallpaperURL(uuid);'''),
+        ('''  async removeCustomWallpaper() {
+    try {
+      let uuid = Services.prefs.getStringPref(
+        PREF_WALLPAPERS_CUSTOM_WALLPAPER_UUID,
+        ""
+      );
+
+      if (!uuid) {
+        return;
+      }
+
+      const wallpaperDir = PathUtils.join(PathUtils.profileDir, "wallpaper");
+      const filePath = PathUtils.join(wallpaperDir, uuid);
+
+      await IOUtils.remove(filePath, { ignoreAbsent: true });
+
+      Services.prefs.clearUserPref(PREF_WALLPAPERS_CUSTOM_WALLPAPER_UUID);
+
+      this.store.dispatch(
+        ac.BroadcastToContent({
+          type: at.WALLPAPERS_CUSTOM_SET,
+          data: null,
+        })
+      );
+    } catch (error) {
+      console.error("Failed to remove custom wallpaper:", error);
+    }
+  }''',
+         '''  async removeCustomWallpaper(uuid) {
+    try {
+      const currentUuid = Services.prefs.getStringPref(
+        PREF_WALLPAPERS_CUSTOM_WALLPAPER_UUID,
+        ""
+      );
+      const target = uuid || currentUuid;
+
+      if (!target) {
+        return;
+      }
+
+      const list = this.readUploadedWallpapers();
+      const removedIndex = list.findIndex(item => item.uuid === target);
+      const remaining = list.filter(item => item.uuid !== target);
+      if (remaining.length !== list.length) {
+        this.writeUploadedWallpapers(remaining);
+      }
+
+      await this.removeWallpaperFile(target);
+
+      if (target !== currentUuid) {
+        return;
+      }
+
+      if (remaining.length) {
+        const next =
+          remaining[Math.min(Math.max(removedIndex, 0), remaining.length - 1)];
+        Services.prefs.setStringPref(
+          PREF_WALLPAPERS_CUSTOM_WALLPAPER_UUID,
+          next.uuid
+        );
+        Services.prefs.setStringPref(
+          PREF_WALLPAPERS_CUSTOM_WALLPAPER_THEME,
+          next.theme || "dark"
+        );
+        const userEnabled = Services.prefs.getBoolPref(
+          "browser.newtabpage.activity-stream.newtabWallpapers.user.enabled",
+          false
+        );
+        if (userEnabled) {
+          this.store.dispatch(
+            ac.SetPref("newtabWallpapers.wallpaper", "custom")
+          );
+          this.store.dispatch(
+            ac.SetPref("newtabWallpapers.initialWallpaper", "")
+          );
+          this.store.dispatch(
+            ac.SetPref("newtabWallpapers.user.enabled", true)
+          );
+        }
+        this.store.dispatch(
+          ac.BroadcastToContent({
+            type: at.WALLPAPERS_CUSTOM_SET,
+            data: this.getWallpaperURL(next.uuid),
+          })
+        );
+        return;
+      }
+
+      if (
+        Services.prefs.prefHasUserValue(PREF_WALLPAPERS_CUSTOM_WALLPAPER_UUID)
+      ) {
+        Services.prefs.clearUserPref(PREF_WALLPAPERS_CUSTOM_WALLPAPER_UUID);
+      }
+      if (
+        Services.prefs.prefHasUserValue(PREF_WALLPAPERS_CUSTOM_WALLPAPER_THEME)
+      ) {
+        Services.prefs.clearUserPref(PREF_WALLPAPERS_CUSTOM_WALLPAPER_THEME);
+      }
+
+      this.store.dispatch(ac.SetPref("newtabWallpapers.wallpaper", ""));
+      this.store.dispatch(ac.SetPref("newtabWallpapers.initialWallpaper", ""));
+      this.store.dispatch(ac.SetPref("newtabWallpapers.user.enabled", false));
+
+      this.store.dispatch(
+        ac.BroadcastToContent({
+          type: at.WALLPAPERS_CUSTOM_SET,
+          data: null,
+        })
+      );
+    } catch (error) {
+      console.error("Failed to remove custom wallpaper:", error);
+    }
+  }'''),
+        ('''        if (
+          action.data.name === "newtabWallpapers.customColor.enabled" ||
+          action.data.name === "newtabWallpapers.customWallpaper.enabled" ||
+          action.data.name === "newtabWallpapers.enabled" ||
+          action.data.name === "nova.enabled"
+        ) {
+          this.wallpaperTeardown();
+          await this.wallpaperSetup(false /* isStartup */);
+        }
+        if (action.data.name === "newtabWallpapers.highlightSeenCounter") {''',
+         '''        if (
+          action.data.name === "newtabWallpapers.customColor.enabled" ||
+          action.data.name === "newtabWallpapers.customWallpaper.enabled" ||
+          action.data.name === "newtabWallpapers.enabled" ||
+          action.data.name === "nova.enabled"
+        ) {
+          this.wallpaperTeardown();
+          await this.wallpaperSetup(false /* isStartup */);
+        }
+        if (action.data.name === "newtabWallpapers.customWallpaper.uuid") {
+          const uuid = action.data.value;
+          this.store.dispatch(
+            ac.BroadcastToContent({
+              type: at.WALLPAPERS_CUSTOM_SET,
+              data: uuid ? this.getWallpaperURL(uuid) : null,
+            })
+          );
+        }
+        if (action.data.name === "newtabWallpapers.highlightSeenCounter") {'''),
+        ('''      case at.WALLPAPER_REMOVE_UPLOAD:
+        await this.removeCustomWallpaper();
+        break;''',
+         '''      case at.WALLPAPER_REMOVE_UPLOAD:
+        await this.removeCustomWallpaper(action.data?.uuid);
+        break;'''),
+    ],
+    "chrome/browser/builtin-addons/newtab/lib/ActivityStream.sys.mjs": [
+        ('''  [
+    "newtabWallpapers.customWallpaper.theme",
+    {
+      title: "theme ('light' | 'dark') of user uploaded wallpaper",
+      value: "",
+    },
+  ],''',
+         '''  [
+    "newtabWallpapers.customWallpaper.theme",
+    {
+      title: "theme ('light' | 'dark') of user uploaded wallpaper",
+      value: "",
+    },
+  ],
+  [
+    "newtabWallpapers.customWallpaper.list",
+    {
+      title: "JSON list of user uploaded wallpapers",
+      value: "[]",
+    },
+  ],
+  [
+    "newtabWallpapers.customWallpaper.max",
+    {
+      title: "Maximum number of user uploaded wallpapers",
+      value: 100,
+    },
+  ],'''),
     ],
     "chrome/browser/builtin-addons/newtab/lib/TopSitesFeed.sys.mjs": [
         ('''function getTopSitesCount(prefValues) {
@@ -2411,6 +2923,51 @@ body:not(.lightWallpaper):not(.darkWallpaper) {
   opacity: 1;
   visibility: visible !important;
 }
+/* Uploaded wallpapers. The stock subpanel is already a three column grid
+   with its own scroll, so each upload is one slot next to the add tile. */
+.wallpaper-input.theme-custom-wallpaper.fg-has-upload::after {
+  display: none;
+}
+.wallpaper-input.theme-custom-wallpaper.fg-has-upload {
+  border: none;
+}
+.fg-wallpaper-slot {
+  position: relative;
+  min-width: 0;
+}
+.fg-wallpaper-slot .wallpaper-input {
+  display: block;
+}
+.fg-wallpaper-remove {
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-end: 4px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 22px;
+  block-size: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background-color: var(--fg-bg-3);
+  background-image: url("chrome://global/skin/icons/close.svg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 12px;
+  -moz-context-properties: fill;
+  fill: var(--fg-text);
+  color: var(--fg-text);
+  cursor: pointer;
+}
+.fg-wallpaper-remove:hover {
+  background-color: var(--fg-hover);
+}
+.fg-wallpaper-remove:focus-visible {
+  outline: 1px solid AccentColor;
+  outline-offset: 1px;
+}
 """
 
 # Fox mascot art stays. Only the Mozilla mark is replaced.
@@ -2767,12 +3324,14 @@ SB_CHROME_CSS = """
 @media (prefers-reduced-motion: no-preference) {
   .tab-close-button,
   .button-icon {
-    transition: transform 120ms cubic-bezier(0.3, 0, 0.2, 1);
+    transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
   }
 
   .tab-close-button:active,
   button:active > .button-icon {
-    transform: scale(0.93);
+    transform: scale(0.9);
+    transition-duration: 90ms;
+    transition-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
   }
 }
 
@@ -5265,13 +5824,23 @@ SB_WORKSPACES_JS = """
 # Pressed design system buttons shrink their icon, not the button box. The
 # stylesheet lives in the moz-button shadow root, so the img is reachable here.
 MOZ_BUTTON_PRESS_CSS = """
+/* Icon stays on the optical center. Some SVG boxes carry uneven padding. */
+.button-background img {
+  display: block;
+  flex: none;
+  margin: 0;
+  vertical-align: middle;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .button-background img {
-    transition: transform 120ms cubic-bezier(0.3, 0, 0.2, 1);
+    transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
   }
 
   #main-button:active .button-background img {
-    transform: scale(0.93);
+    transform: scale(0.9);
+    transition-duration: 90ms;
+    transition-timing-function: cubic-bezier(0.3, 0, 0.2, 1);
   }
 }
 """

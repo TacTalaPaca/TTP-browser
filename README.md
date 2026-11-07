@@ -175,7 +175,10 @@ changes are overlays on the unpacked tarball, applied by
   tile is never hidden on narrow windows. Weather widget on with explicit
   endpoints. No stories, highlights or shopping content.
 - Wallpapers offer only the custom upload from the PC. The stock Firefox
-  wallpaper list and the solid color picker are dropped.
+  wallpaper list and the solid color picker are dropped. Uploads appear in a
+  scrollable grid inside the Wallpapers panel. Up to 100 are kept, and a new
+  upload drops the oldest. Removing the active wallpaper switches to the next
+  one; the Wallpapers toggle turns off only when none are left.
 - Add and edit shortcut dialogs fade and scale in on open and out on close.
 - Settings loses the sponsored shortcuts, sponsored stories, support promo
   and recent activity sections.
