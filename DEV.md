@@ -147,7 +147,9 @@ cache lives in `build/tools/`, also gitignored.
 - `VERSION` is the Firegila release.
 - `ESR_VERSION` is the Firefox base.
 - Every release gets its own `packages/<VERSION>/` folder. A new product
-  release is a new `VERSION`, a new folder, and a new `v<VERSION>` tag.
+  release is a new `VERSION`, a new release entry in
+  `packaging/common/org.firegila.Firegila.metainfo.xml`, a new folder, and a
+  new `v<VERSION>` tag.
 - `scripts/check-commit.sh` runs before a commit. It fails on tracked ignored
   files, staged files under `build/`, `packages/`, `sources/` or
   `scripts/__pycache__`, large staged files, and whitespace errors.
@@ -172,11 +174,11 @@ appended to the file that wins the cascade for the thing being styled.
 | `SIDEBAR_PAGE_CSS` | `sidebar/sidebar.css` |
 | `MEGALIST_CSS` | `megalist/megalist.css` |
 
-`NEWTAB_CSS` is the four newtab blocks concatenated once. `SB_BOOTSTRAP_JS`
+`NEWTAB_CSS` is the five newtab blocks concatenated once. `SB_BOOTSTRAP_JS`
 runs before `SB_ANIM_JS` in the same file. The bootstrap reads the
 real nav bar height and button size off the live toolbar into two custom
 properties, and `SB_ANIM_JS` uses them, so the strip width is never hardcoded.
-The tabs column width is the one fixed value, `--fg-tabs-width` in
+The tabs column width is the fixed `--fg-tabs-width` in
 `GLOBAL_OVERRIDE_CSS`, used by the stylesheet and by the auto-hide pointer
 handler in `SB_BOOTSTRAP_JS`.
 
@@ -196,6 +198,16 @@ with panel relative coordinates, so the window handler only collapses the
 column and normalizes the pointer x against the window screen origin. A content
 browser never reports mousemove to this window, so that sensor is what makes
 the edge work over a page or a scrollbar.
+
+Auto-collapse keeps the tabs column in layout at the strip width and animates
+its width on hover. The width, the auto-hide slide and the pinned grid slide
+share `--fg-tabs-motion`, 200ms. The pinned grid is four columns of 32px rows.
+In the collapsed strip its horizontal offset comes from
+`--fg-pinned-column`, so the selected pin stays visible without a reorder.
+`--fg-pinned-columns` is the one column count, read by the CSS and by
+`SB_BOOTSTRAP_JS`. Restored pins are exempt from the empty tab guard until
+`SessionStore.promiseAllWindowsRestored` settles, otherwise pins are lost on
+start.
 
 The strip matches the nav bar surface when vertical tabs are off, and the tab
 bar surface when they are on, so it joins the tabs column. The tabs column
@@ -223,11 +235,13 @@ The customize button is rendered in `.bottom-actions` in both tab modes, and
 saved websites.
 
 Button press feedback is CSS only. `SB_CHROME_CSS` scales the tab close
-button and HTML button icons on `:active`. XUL toolbarbuttons are left out:
-their icon element also paints the button face, so a scale would shrink the
-whole button. `MOZ_BUTTON_PRESS_CSS`, appended to
+button, HTML button icons and nav bar icons on `:active`. A nav bar button
+scales only its icon, not its box, so the face keeps its size. Menu buttons
+are left out because their panels need a fixed anchor.
+`MOZ_BUTTON_PRESS_CSS`, appended to
 `chrome/toolkit/content/global/elements/moz-button.css`, scales the icon inside
-the moz-button shadow root. Both are 120ms and respect reduced motion.
+the moz-button shadow root. The release is 220ms, the press is 90ms, and both
+respect reduced motion.
 
 `TAB_CSS` sets one tab shape for both strips: 32px tall, an 8px inline
 inset, an 8px icon gap and a 16px close button box on the icon margin. The

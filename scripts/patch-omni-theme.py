@@ -10,6 +10,7 @@ import io
 import os
 import shutil
 from pathlib import Path
+from urllib.parse import quote
 
 from PIL import Image
 
@@ -61,6 +62,7 @@ GRAY = [
     ("--fg-active", "light-dark(#d4d4d4, #4a4a4a)"),
     ("--fg-border", "light-dark(#d0d0d0, #3d3d3d)"),
     ("--fg-divider", "light-dark(#e0e0e0, #2f2f2f)"),
+    ("--fg-separator", "light-dark(#d9d9d9, #333333)"),
     ("--fg-text", "light-dark(#171717, #fafafa)"),
     ("--fg-text-dim", "light-dark(#4a4a4a, #b8b8b8)"),
 ]
@@ -149,14 +151,11 @@ GLOBAL_OVERRIDE_CSS = (
     # animation reads them back out in JS, see SB_BOOTSTRAP_JS.
     + "    --fg-motion-fast: 120ms;\n"
     + "    --fg-motion-base: 180ms;\n"
-    + "    --fg-motion-slow: 260ms;\n"
     + "    --fg-ease: ease;\n"
     + "    --fg-press-down: 90ms;\n"
     + "    --fg-press-up: 220ms;\n"
     + "    --fg-press-ease: cubic-bezier(0.2, 0, 0, 1);\n"
     + "    --fg-press-ease-down: cubic-bezier(0.3, 0, 0.2, 1);\n"
-    + "    --fg-fade: 140ms;\n"
-    + "    --fg-fade-label: 160ms;\n"
     + "    --toolbar-field-text-color-focus: light-dark(#171717, #fafafa);\n"
     # The system theme keeps these out of the override because the native
     # platform sets them. Pin them so both theme choices match.
@@ -184,6 +183,7 @@ GLOBAL_OVERRIDE_CSS = (
     + "    --tabs-navbar-separator-color: var(--fg-border);\n"
     + "    --toolbarseparator-color: var(--fg-border);\n"
     + "    --theme-toolbar-separator: var(--fg-border);\n"
+    + "    --panel-separator-color: var(--fg-separator);\n"
     + "    --toolbar-background-color: var(--fg-navbar);\n"
     + "    --toolbar-field-background-color-focus: var(--fg-bg-3);\n"
     + "    --button-background-color-hover: var(--fg-hover);\n"
@@ -245,6 +245,8 @@ GLOBAL_OVERRIDE_CSS = (
     + "    --focus-outline-offset: 1px;\n"
     + "    --fg-radius: 8px;\n"
     + "    --fg-tabs-width: 220px;\n"
+    + "    --fg-tabs-margin: 4px;\n"
+    + "    --fg-tabs-inset: 8px;\n"
     + "    --border-radius-xsmall: 8px;\n"
     + "    --border-radius-small: 8px;\n"
     + "    --border-radius-medium: 8px;\n"
@@ -270,6 +272,17 @@ GLOBAL_OVERRIDE_CSS = (
     + "  :root .toolbarbutton-1 > .toolbarbutton-icon,\n"
     + "  :root .toolbarbutton-1 > .toolbarbutton-badge-stack {\n"
     + "    margin-block: auto !important;\n"
+    + "  }\n"
+    # Hover and selected fills fade in step on every button in the chrome.
+    + "  :root :where(toolbarbutton, button) {\n"
+    + "    transition:\n"
+    + "      background-color var(--fg-motion-fast) var(--fg-ease),\n"
+    + "      border-color var(--fg-motion-fast) var(--fg-ease);\n"
+    + "  }\n"
+    + "  :root .toolbarbutton-1 > :where(.toolbarbutton-icon, .toolbarbutton-text, .toolbarbutton-badge-stack) {\n"
+    + "    transition:\n"
+    + "      background-color var(--fg-motion-fast) var(--fg-ease),\n"
+    + "      border-color var(--fg-motion-fast) var(--fg-ease);\n"
     + "  }\n"
     + "  :root #urlbar .searchmode-switcher {\n"
     + "    --button-border-radius: calc(var(--urlbar-border-radius) - 2px) !important;\n"
@@ -313,13 +326,17 @@ NEWTAB_DIALOG_CSS = """
   color: light-dark(#171717, #fafafa);
 }
 .actions button.cancel {
-  background-color: light-dark(#e6e6e6, #3d3d3d);
-  border-color: light-dark(#c4c4c4, #4a4a4a);
-  color: light-dark(#171717, #fafafa);
+  background-color: var(--fg-bg-3);
+  border-color: var(--fg-border);
+  color: var(--fg-text);
 }
 .actions button.cancel:hover {
-  background-color: light-dark(#d9d9d9, #4a4a4a);
+  background-color: var(--fg-hover);
+  border-color: var(--fg-border);
   box-shadow: none;
+}
+.actions button.cancel:active {
+  background-color: var(--fg-active);
 }
 .actions button.done {
   background-color: var(--color-accent-primary);
@@ -669,12 +686,20 @@ NEWTAB_PALETTE_CSS = """
   --fg-active: light-dark(#d4d4d4, #4a4a4a);
   --fg-border: light-dark(#d0d0d0, #3d3d3d);
   --fg-divider: light-dark(#e0e0e0, #2f2f2f);
+  --fg-separator: light-dark(#d9d9d9, #333333);
   --fg-text: light-dark(#171717, #fafafa);
   --fg-text-dim: light-dark(#4a4a4a, #b8b8b8);
   --button-background-color-hover: var(--fg-hover);
   --button-background-color-active: var(--fg-active);
   --newtab-button-static-hover-background: var(--fg-hover);
   --newtab-button-static-active-background: var(--fg-active);
+  --newtab-element-hover-color: var(--fg-hover);
+  --newtab-element-active-color: var(--fg-active);
+  --newtab-element-secondary-hover-color: var(--fg-hover);
+  --newtab-element-secondary-active-color: var(--fg-active);
+  --newtab-primary-element-hover-color: var(--color-accent-primary-hover);
+  --newtab-primary-element-active-color: var(--color-accent-primary-active);
+  --fg-hover-brightness: 0.85;
   --fg-search-min: 300px;
   --fg-search-max: 720px;
   --fg-search-gap: 24px;
@@ -703,13 +728,15 @@ NEWTAB_PALETTE_CSS = """
 
 # Solid accent for newtab action buttons. Appended to both newtab files.
 NEWTAB_BUTTONS_CSS = """
-/* Press motion tokens. Same names as the chrome theme. */
+/* Motion tokens. Same names and values as the chrome theme. */
 :root {
+  --fg-motion-fast: 120ms;
+  --fg-motion-base: 180ms;
+  --fg-ease: ease;
   --fg-press-down: 90ms;
   --fg-press-up: 220ms;
   --fg-press-ease: cubic-bezier(0.2, 0, 0, 1);
   --fg-press-ease-down: cubic-bezier(0.3, 0, 0.2, 1);
-  --fg-fade: 140ms;
   --fg-fade-label: 160ms;
 }
 /* Firegila newtab action buttons. Darker neutral fill in dark mode. */
@@ -720,6 +747,7 @@ NEWTAB_BUTTONS_CSS = """
   color: var(--fg-text) !important;
   fill: currentColor;
   border: 0;
+  transition: background-color var(--fg-motion-fast) var(--fg-ease);
 }
 .personalize-button:hover {
   background-color: var(--fg-hover) !important;
@@ -768,12 +796,28 @@ NEWTAB_BUTTONS_CSS = """
   outline: 1px solid AccentColor !important;
   outline-offset: 1px;
 }
+/* Flat buttons keep a background hover. Stock drew a box-shadow ring, which
+ * this theme removes. Primary actions keep their accent hover. */
+.button,
+.actions button {
+  transition:
+    background-color var(--fg-motion-fast) var(--fg-ease),
+    border-color var(--fg-motion-fast) var(--fg-ease);
+}
+.button:hover:not(.dismiss, .done, .primary),
+.button:focus-visible:not(.dismiss, .done, .primary),
+.actions button:hover:not(.dismiss, .done, .primary),
+.actions button:focus-visible:not(.dismiss, .done, .primary) {
+  background-color: var(--fg-hover) !important;
+  box-shadow: none !important;
+}
+.button:active:not(.dismiss, .done, .primary),
+.actions button:active:not(.dismiss, .done, .primary) {
+  background-color: var(--fg-active) !important;
+}
 /* One press curve for every button icon. The press is quick and the release
  * is slower, so a short click still plays the full scale down and back. */
 @media (prefers-reduced-motion: no-preference) {
-  .personalize-button {
-    transition: background-color var(--fg-fade) var(--fg-press-ease);
-  }
   .personalize-button > label {
     transition:
       opacity var(--fg-fade-label) var(--fg-press-ease),
@@ -781,11 +825,11 @@ NEWTAB_BUTTONS_CSS = """
       max-width var(--fg-press-up) var(--fg-press-ease);
   }
   .personalize-button > div > img,
-  .fg-wallpaper-remove {
+  .fg-wallpaper-remove::before {
     transition: transform var(--fg-press-up) var(--fg-press-ease);
   }
   .personalize-button:active > div > img,
-  .fg-wallpaper-remove:active {
+  .fg-wallpaper-remove:active::before {
     transform: scale(0.9);
     transition-duration: var(--fg-press-down);
     transition-timing-function: var(--fg-press-ease-down);
@@ -794,7 +838,7 @@ NEWTAB_BUTTONS_CSS = """
     transition:
       max-width var(--fg-press-up) var(--fg-press-ease),
       gap var(--fg-press-up) var(--fg-press-ease),
-      background-color var(--fg-fade) var(--fg-press-ease);
+      background-color var(--fg-motion-fast) var(--fg-ease);
   }
   .open-customization-button::part(moz-button-label) {
     transition:
@@ -810,12 +854,36 @@ NEWTAB_BUTTONS_CSS = """
     transition-timing-function: var(--fg-press-ease-down);
   }
 }
+/* Image tiles tint on hover. Stock darkened them hard, and the empty add
+ * tile had no background change at all. */
+.wallpaper-input {
+  transition:
+    filter var(--fg-motion-fast) var(--fg-ease),
+    background-color var(--fg-motion-fast) var(--fg-ease);
+}
+.wallpaper-input:hover {
+  filter: brightness(var(--fg-hover-brightness));
+}
+.wallpaper-input.theme-custom-wallpaper:hover {
+  background-color: var(--fg-hover);
+}
+.wallpapers-reset {
+  transition: background-color var(--fg-motion-fast) var(--fg-ease);
+}
+.wallpapers-reset:hover {
+  background-color: var(--fg-hover);
+  border-radius: var(--border-radius-small);
+}
+.top-site-outer .context-menu-button {
+  transition: background-color var(--fg-motion-fast) var(--fg-ease);
+}
 .top-site-outer .context-menu-button:hover {
-  background-color: var(--color-accent-primary) !important;
-  fill: AccentColorText;
+  background-color: var(--fg-hover) !important;
+  fill: var(--fg-text);
+  color: var(--fg-text);
 }
 .top-site-outer .context-menu-button:hover:active {
-  background-color: var(--color-accent-primary-active) !important;
+  background-color: var(--fg-active) !important;
 }
 """
 
@@ -844,8 +912,10 @@ BROWSER_EDITS = {
   </box>
   <splitter id="sidebar-launcher-splitter" class="chromeclass-extrachrome sidebar-splitter" resizebefore="sibling" resizeafter="none" hidden="true"/>
   <box id="firegila-tabs-sensor"/>
-  <box id="vertical-tabs-container">
-    <box id="vertical-tabs" customizable="true" contextmenu="toolbar-context-menu"></box>
+  <box id="firegila-tabs-slot">
+    <box id="vertical-tabs-container">
+      <box id="vertical-tabs" customizable="true" contextmenu="toolbar-context-menu"></box>
+    </box>
   </box>
 """),
         # Website panels get a header and their own content browser next to the
@@ -1046,19 +1116,10 @@ BROWSER_EDITS = {
     # control becomes the auto-hide tabs switch, which only touches the tabs
     # column and never writes sidebar.visibility.
     "chrome/browser/content/browser/sidebar/sidebar-customize.mjs": [
-        ("""                <moz-checkbox
-                  slot="nested"
-                  type="checkbox"
-                  id="hide-sidebar"
-                  name="hideSidebar"
-                  data-l10n-id="sidebar-hide-tabs-and-sidebar"
-                  @change=${this.#handleVisibilityChange}
-                  ?checked=${this.visibility == "hide-sidebar"}
-                  ?disabled=${this.getWindow().SidebarController._state
-                    .revampVisibility === "expand-on-hover"}
-                ></moz-checkbox>
-""", ""),
-        ("""                ${when(
+        ("""            ${when(
+              this.verticalTabsEnabled,
+              () => html`
+                ${when(
                   this.expandOnHoverEnabled,
                   () => html`
                     <moz-checkbox
@@ -1074,9 +1135,27 @@ BROWSER_EDITS = {
                     ></moz-checkbox>
                   `
                 )}
-""",
-         """                <moz-checkbox
+                <moz-checkbox
                   slot="nested"
+                  type="checkbox"
+                  id="hide-sidebar"
+                  name="hideSidebar"
+                  data-l10n-id="sidebar-hide-tabs-and-sidebar"
+                  @change=${this.#handleVisibilityChange}
+                  ?checked=${this.visibility == "hide-sidebar"}
+                  ?disabled=${this.getWindow().SidebarController._state
+                    .revampVisibility === "expand-on-hover"}
+                ></moz-checkbox>
+              `
+            )}
+            </moz-checkbox>
+          </moz-fieldset>
+""",
+         """            </moz-checkbox>
+            ${when(
+              this.verticalTabsEnabled,
+              () => html`
+                <moz-checkbox
                   type="checkbox"
                   id="auto-hide-tabs"
                   name="autoHideTabs"
@@ -1088,17 +1167,19 @@ BROWSER_EDITS = {
                   )}
                 ></moz-checkbox>
                 <moz-checkbox
-                  slot="nested"
                   type="checkbox"
-                  id="tabs-opposite"
-                  name="tabsOpposite"
-                  data-l10n-id="firegila-tabs-opposite"
-                  @change=${this.#toggleTabsOpposite}
+                  id="auto-collapse-tabs"
+                  name="autoCollapseTabs"
+                  data-l10n-id="firegila-auto-collapse-tabs"
+                  @change=${this.#toggleAutoCollapseTabs}
                   ?checked=${Services.prefs.getBoolPref(
-                    "firegila.sidebar.tabsOpposite",
+                    "firegila.sidebar.autoCollapseTabs",
                     false
                   )}
                 ></moz-checkbox>
+              `
+            )}
+          </moz-fieldset>
 """),
         # Website panels sit next to the position switch in the same group.
         ("""              ?checked=${!this.isPositionStart}
@@ -1107,6 +1188,17 @@ BROWSER_EDITS = {
 """,
          """              ?checked=${!this.isPositionStart}
           ></moz-checkbox>
+            <moz-checkbox
+              type="checkbox"
+              id="tabs-opposite"
+              name="tabsOpposite"
+              data-l10n-id="firegila-tabs-opposite"
+              @change=${this.#toggleTabsOpposite}
+              ?checked=${Services.prefs.getBoolPref(
+                "firegila.sidebar.tabsOpposite",
+                false
+              )}
+            ></moz-checkbox>
             <moz-checkbox
               type="checkbox"
               id="web-panels-enabled"
@@ -1138,6 +1230,28 @@ BROWSER_EDITS = {
       "firegila.sidebar.autoHideTabs",
       e.target.checked
     );
+    if (e.target.checked) {
+      Services.prefs.setBoolPref(
+        "firegila.sidebar.autoCollapseTabs",
+        false
+      );
+    }
+    this.requestUpdate();
+  }
+
+  #toggleAutoCollapseTabs(e) {
+    e.stopPropagation();
+    Services.prefs.setBoolPref(
+      "firegila.sidebar.autoCollapseTabs",
+      e.target.checked
+    );
+    if (e.target.checked) {
+      Services.prefs.setBoolPref(
+        "firegila.sidebar.autoHideTabs",
+        false
+      );
+    }
+    this.requestUpdate();
   }
 
   #toggleTabsOpposite(e) {
@@ -1162,6 +1276,7 @@ BROWSER_EDITS = {
     "localization/en-US/browser/sidebar.ftl": [
         ("expand-sidebar-on-hover =\n  .label = Expand sidebar on hover",
          "firegila-auto-hide-tabs =\n  .label = Auto-hide tabs\n\n"
+         "firegila-auto-collapse-tabs =\n  .label = Auto-collapse tabs\n\n"
          "firegila-tabs-opposite =\n  .label = Tabs on the opposite side\n\n"
          "firegila-webpanels-toggle =\n  .label = Add websites to sidebar\n\n"
          "firegila-webpanel-add-heading = Add website to sidebar\n\n"
@@ -2572,15 +2687,23 @@ TAB_CSS = """
   --tab-background-color-selected: light-dark(#ffffff, #333333);
   --tab-background-color-hover: var(--fg-tab-bg-hover);
   --tab-selected-textcolor: light-dark(#171717, #fafafa);
-  --tab-border-color-accent: var(--fg-tab-border);
+  --tab-border-color-accent: AccentColor;
   --tab-selected-shadow: none;
 }
 .tabbrowser-tab:not([selected], [multiselected]) > .tab-stack > .tab-background {
   background-color: var(--fg-tab-bg);
   border: 1px solid var(--fg-tab-border);
 }
-.tabbrowser-tab[selected] > .tab-stack > .tab-background {
-  border: 1px solid var(--fg-tab-border);
+.tabbrowser-tab[selected] > .tab-stack > .tab-background,
+.tabbrowser-tab[multiselected] > .tab-stack > .tab-background {
+  border: 1px solid AccentColor;
+}
+/* Hover and selected use the same fade as the buttons and tiles. The stock
+ * drag transition below still wins while a tab moves. */
+.tabbrowser-tab > .tab-stack > .tab-background {
+  transition:
+    background-color var(--fg-motion-fast) var(--fg-ease),
+    border-color var(--fg-motion-fast) var(--fg-ease);
 }
 #tabbrowser-tabs[orient="horizontal"]::before {
   display: none !important;
@@ -2611,7 +2734,7 @@ TAB_CSS = """
 }
 
 #tabbrowser-tabs[orient="vertical"] .tabbrowser-tab {
-  padding: 2px !important;
+  padding: var(--fg-tabs-tab-padding) !important;
 }
 #tabbrowser-tabs[orient="vertical"] .tabbrowser-tab > .tab-stack > .tab-background {
   margin-inline: 0 !important;
@@ -2660,10 +2783,11 @@ TAB_CSS = """
 
 #tabbrowser-tabs[orient="vertical"] > #vertical-tabs-newtab-button,
 #tabbrowser-arrowscrollbox[orient="vertical"] > #tabbrowser-arrowscrollbox-periphery > #tabs-newtab-button {
-  width: calc(100% - 4px) !important;
+  width: calc(100% - 2 * var(--fg-tabs-margin)) !important;
   min-width: 0 !important;
-  margin: 2px !important;
-  padding-inline: 8px !important;
+  margin-block: 2px !important;
+  margin-inline: var(--fg-tabs-margin) !important;
+  padding-inline: var(--fg-tabs-inset) !important;
   height: 32px !important;
   min-height: 32px !important;
   justify-content: start !important;
@@ -2674,8 +2798,11 @@ TAB_CSS = """
 # the corner next to the sidebar. Firegila keeps it square and borderless.
 CONTENT_AREA_CSS = """
 .browserContainer {
+  box-sizing: border-box;
   outline: none;
+  border: 1px solid var(--fg-divider);
   border-radius: 0 !important;
+  overflow: clip;
 }
 """
 
@@ -2694,6 +2821,8 @@ SIDEBAR_PAGE_CSS = """
   padding-inline: 0;
 }
 """
+
+
 
 # The password panel keeps the sidebar panel padding and the same search
 # field as the other tools.
@@ -2720,17 +2849,6 @@ NEWTAB_TWEAKS_CSS = """
 *, *::before, *::after {
   box-shadow: none !important;
   text-shadow: none !important;
-}
-/* Graph paper grid on the plain new tab background. Only when no wallpaper
-   is set, so a chosen image stays clean. Centered so the pattern reads as
-   deliberate rather than as an off screen edge. */
-body:not(.lightWallpaper):not(.darkWallpaper) {
-  background-image:
-    linear-gradient(to right, light-dark(color-mix(in srgb, var(--fg-text) 8%, transparent), color-mix(in srgb, var(--fg-text) 4%, transparent)) 1px, transparent 1px),
-    linear-gradient(to bottom, light-dark(color-mix(in srgb, var(--fg-text) 8%, transparent), color-mix(in srgb, var(--fg-text) 4%, transparent)) 1px, transparent 1px);
-  background-size: 24px 24px;
-  background-position: center center;
-  background-repeat: repeat;
 }
 .customize-menu {
   border-radius: var(--fg-radius) !important;
@@ -2784,12 +2902,30 @@ body:not(.lightWallpaper):not(.darkWallpaper) {
   box-shadow: none !important;
   border: 1px solid var(--fg-border) !important;
   border-radius: var(--fg-radius) !important;
-  background: var(--fg-bg-3) !important;
+  background-color: var(--fg-bg-3) !important;
+  transition:
+    background-color var(--fg-motion-fast) var(--fg-ease),
+    border-color var(--fg-motion-fast) var(--fg-ease),
+    width 100ms ease-out,
+    height 100ms ease-out !important;
+}
+.top-site-outer:hover .tile,
+.top-site-outer:focus-within .tile,
+.top-site-outer.add-button:hover .tile,
+.top-site-outer.add-button:focus-within .tile,
+.nova-enabled .top-site-outer:hover .tile,
+.nova-enabled .top-site-outer:focus-within .tile,
+.nova-enabled .top-site-outer.add-button:hover .tile,
+.nova-enabled .top-site-outer.add-button:focus-within .tile {
+  background-color: var(--fg-hover) !important;
 }
 .top-site-outer .tile:active,
-.top-site-outer.add-button .tile:active {
+.top-site-outer.add-button .tile:active,
+.nova-enabled .top-site-outer .tile:active,
+.nova-enabled .top-site-outer.add-button .tile:active {
   box-shadow: none !important;
   border: 1px solid var(--fg-border) !important;
+  background-color: var(--fg-active) !important;
 }
 .top-site-outer .top-site-button:focus-visible,
 .top-site-outer .tile:focus-visible {
@@ -2894,6 +3030,7 @@ body:not(.lightWallpaper):not(.darkWallpaper) {
   /* Fixed width. The card grew after use location, which shrank the right
      inset and made the padding look wrong. Same width in every state. */
   inline-size: 170px;
+  transition: background-color var(--fg-motion-fast) var(--fg-ease);
 }
 .nova-enabled .weather-widget.weather-search-active.small-widget {
   inline-size: 170px;
@@ -2915,7 +3052,7 @@ body:not(.lightWallpaper):not(.darkWallpaper) {
 }
 .nova-enabled .weather-widget:hover,
 .nova-enabled .weather-widget:focus-within {
-  background: var(--fg-bg-3) !important;
+  background: var(--fg-hover) !important;
   outline: none !important;
   box-shadow: none !important;
 }
@@ -2974,17 +3111,27 @@ body:not(.lightWallpaper):not(.darkWallpaper) {
   border: 0;
   border-radius: 50%;
   background-color: var(--fg-bg-3);
+  color: var(--fg-text);
+  cursor: pointer;
+  transition: background-color var(--fg-motion-fast) var(--fg-ease);
+}
+.fg-wallpaper-remove::before {
+  content: "";
+  display: block;
+  inline-size: 12px;
+  block-size: 12px;
   background-image: url("chrome://global/skin/icons/close.svg");
   background-position: center;
   background-repeat: no-repeat;
   background-size: 12px;
   -moz-context-properties: fill;
   fill: var(--fg-text);
-  color: var(--fg-text);
-  cursor: pointer;
 }
 .fg-wallpaper-remove:hover {
   background-color: var(--fg-hover);
+}
+.fg-wallpaper-remove:active {
+  background-color: var(--fg-active);
 }
 .fg-wallpaper-remove:focus-visible {
   outline: 1px solid AccentColor;
@@ -3061,6 +3208,15 @@ SB_CHROME_CSS = """
 /* Strip width is the nav bar height. Neither measure has a token, the
  * bootstrap reads both off #nav-bar. */
 
+:root {
+  --fg-tabs-tab-padding: 2px;
+  --fg-tabs-collapsed-width: var(--fg-navbar-height, var(--tab-min-height));
+  --fg-pinned-columns: 4;
+  /* The tabs column reveal is longer than the base motion, so the wide
+   * width and pinned grid slide settle together. */
+  --fg-tabs-motion: 200ms;
+}
+
 #sidebar-container {
   inline-size: var(--fg-navbar-height, var(--tab-min-height));
   min-inline-size: var(--fg-navbar-height, var(--tab-min-height));
@@ -3091,10 +3247,8 @@ SB_CHROME_CSS = """
   background-color: var(--focus-outline-color);
 }
 
-/* Panel: plain full height section, no radius. Width is the stored drag size
- * when there is one, else 500px. The 1px border is the section divider on the
- * strip side, so the panel reads as its own surface even when the tones are
- * close. */
+/* Panel: plain full height section, no radius, no divider on the strip side.
+ * Width is the stored drag size when there is one, else 500px. */
 
 #sidebar-box {
   box-sizing: border-box;
@@ -3102,15 +3256,9 @@ SB_CHROME_CSS = """
   margin-block-end: 0;
   overflow: clip;
   background-color: var(--fg-bg);
-  border-inline-start: 1px solid var(--fg-divider);
   border-radius: 0;
   outline: none;
   width: var(--fg-panel-width, 500px);
-}
-
-:root:has(#sidebar-container[sidebar-positionend]) #sidebar-box {
-  border-inline-start: 0;
-  border-inline-end: 1px solid var(--fg-divider);
 }
 
 #sidebar {
@@ -3135,6 +3283,8 @@ SB_CHROME_CSS = """
 #vertical-tabs-container {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   background-color: var(--fg-tabbar);
 }
 
@@ -3147,10 +3297,170 @@ SB_CHROME_CSS = """
   #vertical-tabs-container {
     width: var(--fg-tabs-width);
   }
+
+  /* One spacing system for every vertical tabs mode. The tab row keeps the
+   * same 4px side margin and 12px content inset whether auto-collapse is on,
+   * off, or auto-hide. */
+  #tabbrowser-tabs[orient="vertical"] {
+    gap: 2px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #vertical-tabs {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] .tabbrowser-tab > .tab-stack > .tab-background {
+    /* The tab itself carries 2px of inline padding. The margin is reduced by
+     * that amount so the visible gap still matches the 4px token. */
+    width: calc(100% - 2 * (var(--fg-tabs-margin) - 2px)) !important;
+    margin-inline: calc(var(--fg-tabs-margin) - 2px) !important;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] .tab-content {
+    padding-inline: calc(var(--fg-tabs-margin) + var(--fg-tabs-inset) - 2px) !important;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] .tab-label-container {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    mask-image: none !important;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] .tab-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] > #vertical-tabs-newtab-button > .toolbarbutton-text,
+  #tabbrowser-arrowscrollbox[orient="vertical"] > #tabbrowser-arrowscrollbox-periphery > #tabs-newtab-button > .toolbarbutton-text {
+    min-width: 0;
+    max-width: 20ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
-:root:has(#sidebar-container[hidden]) #vertical-tabs-container {
-  display: none;
+/* Hiding the sidebar keeps the tabs column. The hide button closes the
+ * strip and panel only. */
+
+/* The slot is a real flex item so the stock position code can order it. A
+ * display:contents wrapper ignores its own order and moves the tabs to the
+ * far edge. */
+#firegila-tabs-slot {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Pinned tabs in vertical mode. Up to four square tiles per row. The grid
+ * fills the bar, so the tile size follows the row width. One tile per row in
+ * the collapsed strip. Equal 4px gaps and padding, default tab border. No
+ * splitter and no divider. */
+#vertical-pinned-tabs-splitter {
+  display: none !important;
+}
+
+#pinned-tabs-container[orient="vertical"] {
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  padding-inline: 0 !important;
+}
+
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"]::part(scrollbox) {
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"]::part(items-wrapper) {
+  display: grid !important;
+  grid-template-columns: repeat(var(--fg-pinned-columns), minmax(var(--tab-collapsed-background-width), 1fr)) !important;
+  grid-auto-rows: 32px !important;
+  justify-content: stretch !important;
+  align-items: stretch !important;
+  gap: var(--fg-tabs-margin) !important;
+  padding: 2px var(--fg-tabs-margin) 0 !important;
+}
+
+/* The grid pans between the collapsed column and the full grid. The slide
+ * shares the width timing, so the active tile stays in view and the tiles
+ * never jump when the state flips. */
+:root[fg-autocollapse-tabs] #pinned-tabs-container[orient="vertical"]::part(items-wrapper) {
+  transition: transform var(--fg-tabs-motion) var(--fg-ease);
+  will-change: transform;
+}
+
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"] .tabbrowser-tab {
+  width: 100% !important;
+  min-width: var(--tab-collapsed-background-width) !important;
+  max-width: none !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"] .tabbrowser-tab > .tab-stack > .tab-background {
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  border: 1px solid var(--fg-tab-border) !important;
+  border-radius: var(--fg-radius) !important;
+  background-color: var(--fg-tab-bg) !important;
+}
+
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"] .tabbrowser-tab:not([selected], [multiselected]):hover > .tab-stack > .tab-background {
+  background-color: var(--fg-tab-bg-hover) !important;
+}
+
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"] .tabbrowser-tab[selected] > .tab-stack > .tab-background,
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"] .tabbrowser-tab[multiselected] > .tab-stack > .tab-background {
+  border-color: AccentColor !important;
+  background-color: var(--tab-background-color-selected) !important;
+}
+
+/* In the collapsed strip the grid slides horizontally to the active pinned
+ * column. The row and order stay the same, and one tab from every row stays
+ * visible. */
+:root[fg-autocollapse-tabs]:not([fg-tabs-revealed]) #pinned-tabs-container[orient="vertical"]::part(items-wrapper) {
+  transform: translateX(
+    calc(-1 * var(--fg-pinned-column, 0) * (var(--tab-collapsed-background-width) + var(--fg-tabs-margin)))
+  );
+}
+
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"] .tab-content {
+  padding: 0 !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"] .tab-icon-image,
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"] .tab-throbber {
+  margin: 0 !important;
+}
+
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"] .tab-label-container,
+:root:not([sidebar-expand-on-hover]) #pinned-tabs-container[orient="vertical"] .tab-close-button {
+  display: none !important;
 }
 
 /* Auto-hide tabs. The column keeps its full width and slides over the edge
@@ -3168,7 +3478,7 @@ SB_CHROME_CSS = """
     z-index: var(--browser-area-z-index-sidebar-expand-on-hover);
     width: var(--fg-tabs-width);
     transform: translateX(-100%);
-    transition: transform var(--fg-motion-base) var(--fg-ease);
+    transition: transform var(--fg-tabs-motion) var(--fg-ease);
   }
 
   :root[fg-autohide-tabs]:has(#sidebar-container[sidebar-positionend]) #vertical-tabs-container {
@@ -3220,10 +3530,127 @@ SB_CHROME_CSS = """
     inset-inline-start: 0;
     inset-inline-end: auto;
   }
+}
 
-  :root:has(#sidebar-container[hidden]) #firegila-tabs-sensor {
-    display: none;
+/* Auto-collapse tabs. The column keeps the sidebar strip width in layout and
+ * expands to the full vertical bar on hover. One width transition drives the
+ * bar, the tabs and the workspace row. Margins stay fixed, so the text is
+ * clipped with an ellipsis at every point instead of being hidden or moved. */
+@media -moz-pref("sidebar.verticalTabs") {
+  :root[fg-autocollapse-tabs] #firegila-tabs-slot {
+    display: block;
+    position: relative;
+    flex: 0 0 var(--fg-tabs-collapsed-width);
+    width: var(--fg-tabs-collapsed-width);
+    min-width: var(--fg-tabs-collapsed-width);
+    z-index: var(--browser-area-z-index-sidebar-expand-on-hover);
   }
+
+  :root[fg-autocollapse-tabs] #vertical-tabs-container {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inset-inline-end: auto;
+    width: var(--fg-tabs-collapsed-width);
+    background-color: var(--fg-tabbar);
+    transition: width var(--fg-tabs-motion) var(--fg-ease);
+    z-index: var(--browser-area-z-index-sidebar-expand-on-hover);
+    overflow: hidden;
+    container-type: inline-size;
+    container-name: fg-tabs-width;
+  }
+
+  :root[fg-autocollapse-tabs][fg-tabs-revealed] #vertical-tabs-container {
+    width: var(--fg-tabs-width);
+  }
+
+  /* Anchor on the same side the tabs column occupies. */
+  :root[fg-autocollapse-tabs]:has(#sidebar-container[sidebar-positionend]) #vertical-tabs-container,
+  :root[fg-autocollapse-tabs][fg-tabs-opposite] #vertical-tabs-container {
+    inset-inline-start: auto;
+    inset-inline-end: 0;
+  }
+
+  :root[fg-autocollapse-tabs][fg-tabs-opposite]:has(#sidebar-container[sidebar-positionend]) #vertical-tabs-container {
+    inset-inline-start: 0;
+    inset-inline-end: auto;
+  }
+
+  /* Clicks wait for the open motion, so the menu anchor never moves. */
+  :root[fg-autocollapse-tabs] #vertical-tabs-container > #firegila-workspaces {
+    pointer-events: none;
+  }
+
+  :root[fg-autocollapse-tabs][fg-tabs-open] #vertical-tabs-container > #firegila-workspaces {
+    pointer-events: auto;
+  }
+
+  /* The audio dot rides the visible icon for the whole width range. */
+  :root[fg-autocollapse-tabs] #vertical-tabs-container > #firegila-workspaces .firegila-workspace-audio {
+    position: absolute;
+    inset-block-end: 1px;
+    inset-inline-start: 20px;
+    inset-inline-end: auto;
+    margin: 0;
+  }
+}
+
+/* Collapsed state: icons only. Text, the close box and the chevron wait for
+ * room, then the width reveal grows them letter by letter. */
+@container fg-tabs-width (max-width: 48px) {
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tab-label-container,
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tab-close-button,
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] > #vertical-tabs-newtab-button > .toolbarbutton-text,
+  :root[fg-autocollapse-tabs] #tabbrowser-arrowscrollbox[orient="vertical"] > #tabbrowser-arrowscrollbox-periphery > #tabs-newtab-button > .toolbarbutton-text,
+  :root[fg-autocollapse-tabs] #vertical-tabs-container > #firegila-workspaces > .toolbarbutton-text {
+    max-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    opacity: 0;
+  }
+
+  :root[fg-autocollapse-tabs] #vertical-tabs-container > #firegila-workspaces {
+    justify-content: center;
+  }
+
+  :root[fg-autocollapse-tabs] #vertical-tabs-container > #firegila-workspaces > .firegila-workspace-arrow-box {
+    max-width: 12px !important;
+    margin-inline: 0 !important;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[fg-autohide-tabs] #vertical-tabs-container,
+  :root[fg-autocollapse-tabs] #vertical-tabs-container,
+  :root[fg-autocollapse-tabs] #pinned-tabs-container[orient="vertical"]::part(items-wrapper) {
+    transition: none;
+  }
+}
+
+/* A workspace popup pins the strip. The column keeps the resting width, so
+ * the menu and dialog anchors stay still while the popup is open. The button
+ * keeps the same padding as the revealed state, so it never shifts. */
+:root[fg-tabs-reveal-pinned][fg-autohide-tabs] #vertical-tabs-container,
+:root[fg-tabs-context-pinned][fg-autohide-tabs] #vertical-tabs-container {
+  transition: none;
+  transform: none;
+  width: var(--fg-tabs-width);
+}
+
+:root[fg-tabs-reveal-pinned][fg-autocollapse-tabs] #vertical-tabs-container,
+:root[fg-tabs-context-pinned][fg-autocollapse-tabs] #vertical-tabs-container {
+  transition: none !important;
+  width: var(--fg-tabs-width) !important;
+}
+
+/* A popup opens at the full width in one step. The pinned grid does the same,
+ * so it stays under the menu anchor. */
+:root[fg-tabs-reveal-pinned][fg-autocollapse-tabs] #pinned-tabs-container[orient="vertical"]::part(items-wrapper),
+:root[fg-tabs-context-pinned][fg-autocollapse-tabs] #pinned-tabs-container[orient="vertical"]::part(items-wrapper) {
+  transition: none !important;
 }
 
 /* Tabs on the opposite side of the sidebar. Stock writes order inline as
@@ -3249,11 +3676,11 @@ SB_CHROME_CSS = """
   }
 }
 
-:root[fg-tabs-opposite]:not(:has(#sidebar-container[sidebar-positionend])) #vertical-tabs-container {
+:root[fg-tabs-opposite]:not(:has(#sidebar-container[sidebar-positionend])) #firegila-tabs-slot {
   order: 9999 !important;
 }
 
-:root[fg-tabs-opposite]:has(#sidebar-container[sidebar-positionend]) #vertical-tabs-container {
+:root[fg-tabs-opposite]:has(#sidebar-container[sidebar-positionend]) #firegila-tabs-slot {
   order: -1 !important;
 }
 
@@ -3339,9 +3766,8 @@ SB_CHROME_CSS = """
   list-style-image: url("chrome://global/skin/icons/close.svg");
 }
 
-/* Pressed feedback. XUL toolbarbuttons paint the face and the glyph in one
- * box, so a scale would shrink the whole button. They keep the stock
- * background press. Only the close button and design system icons scale. */
+/* Pressed feedback. Only the round icon box scales. Menu buttons are left out
+ * so their panels keep the same anchor. */
 
 @media (prefers-reduced-motion: no-preference) {
   .tab-close-button,
@@ -3349,8 +3775,23 @@ SB_CHROME_CSS = """
     transition: transform var(--fg-press-up) var(--fg-press-ease);
   }
 
+  .toolbarbutton-1:not(#firegila-workspaces, #unified-extensions-button, #PanelUI-menu-button, #downloads-button, #library-button, [type="menu"], [aria-haspopup]) .toolbarbutton-icon {
+    transition:
+      transform var(--fg-press-up) var(--fg-press-ease),
+      background-color var(--fg-motion-fast) var(--fg-ease),
+      border-color var(--fg-motion-fast) var(--fg-ease);
+  }
+
+  .urlbar-page-action:not([aria-haspopup]) .urlbar-icon,
+  .tabbrowser-tab .tab-icon-image {
+    transition: transform var(--fg-press-up) var(--fg-press-ease);
+  }
+
   .tab-close-button:active,
-  button:active > .button-icon {
+  button:active > .button-icon,
+  .toolbarbutton-1:active:not([disabled]):not(#firegila-workspaces, #unified-extensions-button, #PanelUI-menu-button, #downloads-button, #library-button, [type="menu"], [aria-haspopup]) .toolbarbutton-icon,
+  .urlbar-page-action:active:not([disabled]):not([aria-haspopup]) .urlbar-icon,
+  .tabbrowser-tab:active .tab-icon-image {
     transform: scale(0.9);
     transition-duration: var(--fg-press-down);
     transition-timing-function: var(--fg-press-ease-down);
@@ -3484,7 +3925,7 @@ SB_CHROME_CSS = """
   align-items: center;
   flex: 0 0 auto;
   box-sizing: border-box;
-  width: 120px;
+  width: 150px;
   height: 32px;
   min-height: 32px;
   margin-block: 4px;
@@ -3510,34 +3951,53 @@ SB_CHROME_CSS = """
   background-color: var(--fg-tab-bg-hover);
 }
 
-/* The stock icon slot is empty here. Hide it so the label and the chevron sit
- * between the two paddings without an extra leading gap. */
+/* The workspaces icon. The label and chevron share the same 8px gap as the
+ * tab icon and label. */
 
+/* The switcher shows its label and chevron only. The folder icon is gone. */
 #firegila-workspaces > .toolbarbutton-icon {
-  display: none;
+  display: none !important;
 }
 
 #firegila-workspaces > .toolbarbutton-text {
   display: block;
   flex: 1 1 auto;
   min-width: 0;
+  max-width: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
+  contain: inline-size;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: start;
+}
+
+/* The row itself carries the hover and open fill. Stock also paints the icon
+ * and label boxes, which adds inner squares and shifts the glyph on click. */
+#firegila-workspaces > .toolbarbutton-icon,
+#firegila-workspaces > .toolbarbutton-text,
+#firegila-workspaces > .firegila-workspace-arrow-box {
+  background-color: transparent !important;
+  outline: none !important;
 }
 
 /* Chevron. A real image in currentColor, so it follows the text in both
  * modes. The box is ordered after the label. */
 
 #firegila-workspaces > .firegila-workspace-arrow-box {
-  order: 1;
+  order: -1;
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 0 12px;
+  justify-content: center;
   align-items: center;
-  margin-inline-start: 6px;
+  width: 12px;
+  max-width: 12px;
+  overflow: hidden;
+  margin-inline: 0 8px;
+  /* Clicks on the chevron must hit the menu button itself, so the popup
+   * opens from any part of the button. */
+  pointer-events: none;
 }
 
 /* One audio dot style everywhere: 6px, accent color, round. On the button it
@@ -3566,12 +4026,27 @@ SB_CHROME_CSS = """
   list-style-image: url("chrome://global/skin/icons/arrow-down.svg");
 }
 
+/* The switcher does not scale on press. The label and chevron stay fixed. */
+#firegila-workspaces,
+#firegila-workspaces > .toolbarbutton-text,
+#firegila-workspaces > .firegila-workspace-arrow-box {
+  transform: none !important;
+}
+
 #vertical-tabs-container > #firegila-workspaces {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+  overflow: hidden;
+  contain: layout paint;
   flex: 0 0 auto;
-  width: calc(100% - 4px);
+  width: calc(100% - 2 * var(--fg-tabs-margin));
   max-width: none;
-  margin: 2px;
-  padding-inline: 8px;
+  height: 32px;
+  min-height: 32px;
+  margin-block: var(--fg-tabs-margin) 2px;
+  margin-inline: var(--fg-tabs-margin);
+  padding-inline: calc(var(--fg-tabs-inset) + 1px);
   border: 1px solid var(--fg-tab-border);
   border-radius: 8px;
   background-color: var(--fg-tab-bg);
@@ -3590,8 +4065,9 @@ SB_CHROME_CSS = """
   --panel-border-color: var(--fg-border);
   --panel-text-color: var(--fg-text);
   /* Script replaces this with the live button width, so the list is exactly
-   * as wide as the button in both tab modes. */
-  --panel-width: 120px;
+   * as wide as the button in both tab modes. The minimum keeps the menu
+   * readable when the button is narrower than its labels. */
+  --panel-width: 200px;
   --menuitem-border-radius: 6px;
   --menuitem-padding: 5px 10px;
 }
@@ -3750,7 +4226,17 @@ SB_BOOTSTRAP_JS = """
 (function () {
   const PANEL_WIDTH_PREF = "firegila.sidebar.width";
   const AUTO_HIDE_PREF = "firegila.sidebar.autoHideTabs";
+  const AUTO_COLLAPSE_PREF = "firegila.sidebar.autoCollapseTabs";
   const OPPOSITE_PREF = "firegila.sidebar.tabsOpposite";
+  const { SessionStore } = ChromeUtils.importESModule(
+    "resource:///modules/sessionstore/SessionStore.sys.mjs"
+  );
+  const REVEAL_DELAY = 100;
+  let revealTimer = 0;
+  let openTimer = 0;
+  let contextPins = 0;
+  let tabsRestored = false;
+  let pinnedColumns = 0;
   const DEFAULT_BOOKMARKS_PREF = "firegila.migration.defaultBookmarks";
   const STOCK_DEFAULT_BOOKMARKS = [
     ["Get Help", "https://support.mozilla.org/products/firefox"],
@@ -3911,10 +4397,12 @@ SB_BOOTSTRAP_JS = """
     if (!tabs) {
       return;
     }
-    tabs.toggleAttribute(
-      "expanded",
-      Services.prefs.getBoolPref("sidebar.verticalTabs", false)
-    );
+    const vertical = Services.prefs.getBoolPref("sidebar.verticalTabs", false);
+    tabs.toggleAttribute("expanded", vertical);
+    if (!vertical) {
+      document.documentElement.removeAttribute("fg-tabs-revealed");
+      document.documentElement.removeAttribute("fg-tabs-open");
+    }
   }
 
   function start() {
@@ -3924,9 +4412,12 @@ SB_BOOTSTRAP_JS = """
     syncTabStripExpanded();
     migrateDefaultBookmarks();
     watchSidebarHidden();
+    watchRevealEnter();
     watchRevealLeave();
     watchEdgeSensor();
     watchTabsContextMenu();
+    watchPinnedTabs();
+    watchPinnedColumn();
     Services.prefs.addObserver("sidebar.verticalTabs", syncTabStripExpanded);
   }
 
@@ -3934,11 +4425,31 @@ SB_BOOTSTRAP_JS = """
   // attribute flip and the stylesheet animates the width. The state is set
   // before the sidebar renders, so the first frame is already collapsed.
   function syncAutoHide() {
-    const on = Services.prefs.getBoolPref(AUTO_HIDE_PREF, false);
+    const on =
+      Services.prefs.getBoolPref(AUTO_HIDE_PREF, false) &&
+      !Services.prefs.getBoolPref(AUTO_COLLAPSE_PREF, false);
     document.documentElement.toggleAttribute("fg-autohide-tabs", on);
     if (!on) {
       document.documentElement.removeAttribute("fg-tabs-revealed");
+      document.documentElement.removeAttribute("fg-tabs-open");
     }
+  }
+
+  // Auto-collapse keeps the column in layout at the strip width. The same
+  // reveal attribute drives the expansion, so both tabs modes share the
+  // pointer handling and only one can be active.
+  function syncAutoCollapse() {
+    const on = Services.prefs.getBoolPref(AUTO_COLLAPSE_PREF, false);
+    document.documentElement.toggleAttribute("fg-autocollapse-tabs", on);
+    if (!on) {
+      document.documentElement.removeAttribute("fg-tabs-revealed");
+      document.documentElement.removeAttribute("fg-tabs-open");
+    }
+  }
+
+  function syncTabsMode() {
+    syncAutoHide();
+    syncAutoCollapse();
   }
 
   // The column switches sides by attribute. The order and the edge checks read
@@ -3961,21 +4472,82 @@ SB_BOOTSTRAP_JS = """
     return sidebarOnTheRight() !== opposite;
   }
 
+  // The open attribute only lands after the reveal motion. Labels use it to
+  // fade in without ever changing layout while the column moves.
+  function motionDuration() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return 0;
+    }
+    return parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "--fg-tabs-motion"
+      )
+    );
+  }
+
   function setRevealed(on) {
-    document.documentElement.toggleAttribute("fg-tabs-revealed", on);
+    clearTimeout(revealTimer);
+    clearTimeout(openTimer);
+    const root = document.documentElement;
+    if (
+      !on &&
+      (root.hasAttribute("fg-tabs-reveal-pinned") ||
+        root.hasAttribute("fg-tabs-context-pinned"))
+    ) {
+      return;
+    }
+    if (!on) {
+      root.removeAttribute("fg-tabs-revealed");
+      root.removeAttribute("fg-tabs-open");
+      return;
+    }
+    root.setAttribute("fg-tabs-revealed", "");
+    const delay = motionDuration();
+    if (!delay) {
+      root.setAttribute("fg-tabs-open", "");
+      return;
+    }
+    openTimer = window.setTimeout(() => {
+      if (root.hasAttribute("fg-tabs-revealed")) {
+        root.setAttribute("fg-tabs-open", "");
+      }
+    }, delay);
+  }
+
+  // A context menu keeps the column open even when the pointer leaves it to
+  // use the menu.
+  function pinContextReveal() {
+    contextPins++;
+    const root = document.documentElement;
+    root.setAttribute("fg-tabs-context-pinned", "");
+    root.setAttribute("fg-tabs-revealed", "");
+    root.setAttribute("fg-tabs-open", "");
+  }
+
+  function unpinContextReveal() {
+    contextPins = Math.max(0, contextPins - 1);
+    if (contextPins) {
+      return;
+    }
+    const root = document.documentElement;
+    root.removeAttribute("fg-tabs-context-pinned");
+    const tabs = document.getElementById("vertical-tabs-container");
+    if (!tabs || !tabs.matches(":hover")) {
+      root.removeAttribute("fg-tabs-revealed");
+      root.removeAttribute("fg-tabs-open");
+    }
   }
 
   // Cached so the pointer handler never forces a layout. The width is a fixed
   // token, the same one the stylesheet uses.
-  let tabsWidth = 220;
+  let tabsWidth;
 
   function readTabsWidth() {
-    tabsWidth =
-      parseFloat(
-        getComputedStyle(document.documentElement).getPropertyValue(
-          "--fg-tabs-width"
-        )
-      ) || 220;
+    tabsWidth = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "--fg-tabs-width"
+      )
+    );
   }
 
   function onPointerMove(event) {
@@ -3984,11 +4556,6 @@ SB_BOOTSTRAP_JS = """
       !root.hasAttribute("fg-autohide-tabs") ||
       !root.hasAttribute("fg-tabs-revealed")
     ) {
-      return;
-    }
-    const strip = document.getElementById("sidebar-container");
-    // Hidden sidebar takes the tabs with it.
-    if (!strip || strip.hidden) {
       return;
     }
     const target = event.originalTarget || event.target;
@@ -4028,10 +4595,7 @@ SB_BOOTSTRAP_JS = """
       if (!root.hasAttribute("fg-autohide-tabs")) {
         return;
       }
-      const strip = document.getElementById("sidebar-container");
-      if (strip && !strip.hidden) {
-        setRevealed(true);
-      }
+      setRevealed(true);
     });
   }
 
@@ -4052,23 +4616,181 @@ SB_BOOTSTRAP_JS = """
     });
   }
 
+  // Entering the collapsed column expands it. The column is in layout at the
+  // strip width, so the pointer can reach the icons directly, without an edge
+  // sensor.
+  function watchRevealEnter() {
+    const tabs = document.getElementById("vertical-tabs-container");
+    if (!tabs) {
+      return;
+    }
+    tabs.addEventListener("mouseenter", () => {
+      const root = document.documentElement;
+      if (!root.hasAttribute("fg-autocollapse-tabs")) {
+        return;
+      }
+      clearTimeout(revealTimer);
+      revealTimer = window.setTimeout(() => {
+        if (tabs.matches(":hover")) {
+          setRevealed(true);
+        }
+      }, REVEAL_DELAY);
+    });
+  }
+
   // Leaving the column hides it. A content document does not report mousemove
   // to this window, so the edge sensor alone would leave the column open while
   // the pointer sits in the page or in an open panel.
   function watchRevealLeave() {
     const tabs = document.getElementById("vertical-tabs-container");
     if (tabs) {
-      tabs.addEventListener("mouseleave", () => setRevealed(false));
+      tabs.addEventListener("mouseleave", () => {
+        clearTimeout(revealTimer);
+        setRevealed(false);
+      });
     }
   }
 
-  // The sidebar menu on the tabs column background. Tab items carry their own
-  // menu, so those are left alone. Stock only wires the strip.
+  // New tabs have no page to pin. The menu item is disabled and any pin from a
+  // drag or another path is undone immediately.
+  function emptyTab(tab) {
+    const browser = tab?.linkedBrowser;
+    const uri = browser?.currentURI;
+    if (!uri) {
+      return true;
+    }
+    // A page that is still loading can report about:blank as its current
+    // URI. Leave that pin alone until the page settles.
+    if (tab.hasAttribute("busy")) {
+      return false;
+    }
+    const spec = uri.spec;
+    return (
+      spec === "about:newtab" ||
+      spec === "about:home" ||
+      spec === "about:blank" ||
+      spec === "about:privatebrowsing"
+    );
+  }
+
+  function watchPinnedTabs() {
+    const gb = window.gBrowser;
+    if (!gb?.tabContainer) {
+      return;
+    }
+    // Restored pinned tabs are pinned before their page is loaded, so their
+    // current URI can still be about:blank. Only guard pins after restore.
+    SessionStore.promiseAllWindowsRestored.then(
+      () => {
+        tabsRestored = true;
+      },
+      () => {
+        tabsRestored = true;
+      }
+    );
+    gb.tabContainer.addEventListener("TabPinned", event => {
+      if (!tabsRestored) {
+        return;
+      }
+      const tab = event.target;
+      if (emptyTab(tab)) {
+        try {
+          gb.unpinTab(tab);
+        } catch (e) {}
+      }
+    });
+  }
+
+  // The collapsed strip shows one pinned column. Slide the grid to the
+  // selected tab's column without changing its row or order.
+  function syncPinnedColumn() {
+    const pinned = document.getElementById("pinned-tabs-container");
+    const gb = window.gBrowser;
+    if (!pinned || !gb) {
+      return;
+    }
+    const pins = [...pinned.querySelectorAll("tab")];
+    const index = pins.indexOf(gb.selectedTab);
+    const column =
+      index >= 0 && pinnedColumns > 0 ? index % pinnedColumns : 0;
+    pinned.style.setProperty("--fg-pinned-column", String(column));
+  }
+
+  function watchPinnedColumn() {
+    const gb = window.gBrowser;
+    if (!gb?.tabContainer) {
+      return;
+    }
+    pinnedColumns = parseInt(
+      getComputedStyle(document.documentElement).getPropertyValue(
+        "--fg-pinned-columns"
+      ),
+      10
+    );
+    syncPinnedColumn();
+    for (const type of ["TabSelect", "TabPinned", "TabUnpinned", "TabMove"]) {
+      gb.tabContainer.addEventListener(type, syncPinnedColumn);
+    }
+  }
+
+  // The sidebar menu on the tabs column background and the tab menu. Both
+  // pin the column open while the menu is visible, so leaving the bar to use
+  // the menu does not collapse it.
   function watchTabsContextMenu() {
     const container = document.getElementById("vertical-tabs-container");
     if (!container) {
       return;
     }
+
+    const tabMenu = document.getElementById("tabContextMenu");
+    const menuTab = () => {
+      const node = tabMenu?.triggerNode;
+      const tab = node?.closest?.("tab") || window.gBrowser?.selectedTab;
+      return tab && container.contains(tab) ? tab : null;
+    };
+
+    if (tabMenu) {
+      tabMenu.addEventListener("popupshowing", () => {
+        if (menuTab() || container.matches(":hover")) {
+          pinContextReveal();
+        }
+      });
+
+      tabMenu.addEventListener("popupshown", () => {
+        const tab = menuTab();
+        const empty = !tab || emptyTab(tab);
+        for (const id of ["context_pinTab", "context_pinSelectedTabs"]) {
+          const item = document.getElementById(id);
+          if (item) {
+            item.disabled = empty;
+          }
+        }
+      });
+
+      tabMenu.addEventListener(
+        "command",
+        event => {
+          const id = event.target?.id;
+          if (id !== "context_pinTab" && id !== "context_pinSelectedTabs") {
+            return;
+          }
+          const selected = window.gBrowser?.selectedTabs || [];
+          const blocked =
+            id === "context_pinTab"
+              ? emptyTab(menuTab() || window.gBrowser?.selectedTab)
+              : selected.some(emptyTab);
+          if (blocked) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        },
+        true
+      );
+
+      tabMenu.addEventListener("popuphidden", unpinContextReveal);
+    }
+
+    const sidebarMenu = document.getElementById("sidebar-context-menu");
     container.addEventListener("contextmenu", event => {
       let node = event.explicitOriginalTarget || event.target;
       while (node && node !== container) {
@@ -4082,24 +4804,28 @@ SB_BOOTSTRAP_JS = """
         node = node.parentNode;
       }
       const main = document.querySelector("sidebar-main");
-      const menu = document.getElementById("sidebar-context-menu");
       if (
         !main ||
-        !menu ||
+        !sidebarMenu ||
         typeof main.updateSidebarContextMenuItems !== "function"
       ) {
         return;
       }
       event.preventDefault();
       main.updateSidebarContextMenuItems();
-      menu.openPopupAtScreen(event.screenX, event.screenY, true);
+      pinContextReveal();
+      sidebarMenu.addEventListener("popuphidden", unpinContextReveal, {
+        once: true,
+      });
+      sidebarMenu.openPopupAtScreen(event.screenX, event.screenY, true);
     });
   }
 
-  syncAutoHide();
+  syncTabsMode();
   syncTabsSide();
   readTabsWidth();
-  Services.prefs.addObserver(AUTO_HIDE_PREF, syncAutoHide);
+  Services.prefs.addObserver(AUTO_HIDE_PREF, syncTabsMode);
+  Services.prefs.addObserver(AUTO_COLLAPSE_PREF, syncTabsMode);
   Services.prefs.addObserver(OPPOSITE_PREF, syncTabsSide);
   window.addEventListener("mousemove", onPointerMove);
 
@@ -5142,6 +5868,8 @@ SB_WORKSPACES_JS = """
   const MAX_WORKSPACES = 12;
   const MAX_NAME = 24;
   const SCROLL_DELAY = 160;
+  const MENU_MIN_WIDTH = 200;
+  const MENU_MAX_WIDTH = 260;
 
   const { SessionStore } = ChromeUtils.importESModule(
     "resource:///modules/sessionstore/SessionStore.sys.mjs"
@@ -5153,10 +5881,59 @@ SB_WORKSPACES_JS = """
   let nameMode = "new";
   let lastScroll = 0;
   let started = false;
+  let revealPins = 0;
   const lastTab = new Map();
 
   function tabsBrowser() {
     return window.gBrowser;
+  }
+
+  // Keep the tabs column expanded while one of its popups is open. The
+  // pointer leaves the column to use the menu, so without this the column
+  // collapses and the next popup anchors to a moved button.
+  function pinReveal() {
+    revealPins++;
+    const root = document.documentElement;
+    root.setAttribute("fg-tabs-reveal-pinned", "");
+    root.setAttribute("fg-tabs-revealed", "");
+    root.setAttribute("fg-tabs-open", "");
+    // Flush the snapped layout before a popup reads the anchor box.
+    const button = document.getElementById("firegila-workspaces");
+    if (button) {
+      button.getBoundingClientRect();
+    }
+  }
+
+  function unpinReveal() {
+    revealPins = Math.max(0, revealPins - 1);
+    if (revealPins) {
+      return;
+    }
+    const root = document.documentElement;
+    root.removeAttribute("fg-tabs-reveal-pinned");
+    const tabs = document.getElementById("vertical-tabs-container");
+    if (!tabs || !tabs.matches(":hover")) {
+      root.removeAttribute("fg-tabs-revealed");
+      root.removeAttribute("fg-tabs-open");
+    }
+  }
+
+  // Use the resting width, not the animating one. In vertical tabs the
+  // button is the column width minus its fixed inline margins.
+  function workspaceMenuWidth(button) {
+    const vertical = Services.prefs.getBoolPref("sidebar.verticalTabs", false);
+    let width = Math.round(button.getBoundingClientRect().width);
+    if (vertical) {
+      const rootStyle = getComputedStyle(document.documentElement);
+      const tabsWidth = parseFloat(
+        rootStyle.getPropertyValue("--fg-tabs-width")
+      );
+      const margin = parseFloat(
+        rootStyle.getPropertyValue("--fg-tabs-margin")
+      );
+      width = Math.round(tabsWidth - 2 * margin);
+    }
+    return Math.max(MENU_MIN_WIDTH, Math.min(MENU_MAX_WIDTH, width));
   }
 
   function message(id, args) {
@@ -5477,6 +6254,8 @@ SB_WORKSPACES_JS = """
     el.error.hidden = true;
     el.error.textContent = "";
     el.panel.hidden = false;
+    pinReveal();
+    el.panel.addEventListener("popuphidden", unpinReveal, { once: true });
     el.panel.openPopup(
       document.getElementById("firegila-workspaces"),
       "bottomleft topleft",
@@ -5548,6 +6327,8 @@ SB_WORKSPACES_JS = """
       count: tabsIn(current.id).length,
     });
     el.panel.hidden = false;
+    pinReveal();
+    el.panel.addEventListener("popuphidden", unpinReveal, { once: true });
     el.panel.openPopup(
       document.getElementById("firegila-workspaces"),
       "bottomleft topleft",
@@ -5701,12 +6482,14 @@ SB_WORKSPACES_JS = """
 
     const menu = document.getElementById("firegila-workspace-menu");
     menu.addEventListener("popupshowing", () => {
+      pinReveal();
       menu.style.setProperty(
         "--panel-width",
-        `${Math.round(button.getBoundingClientRect().width)}px`
+        `${workspaceMenuWidth(button)}px`
       );
       buildMenu();
     });
+    menu.addEventListener("popuphidden", unpinReveal);
     document
       .getElementById("firegila-workspace-new")
       .addEventListener("command", () => openNamePanel("new"));
@@ -5854,6 +6637,13 @@ MOZ_BUTTON_PRESS_CSS = """
   vertical-align: middle;
 }
 
+/* Hover, press and selected fills fade in step with the chrome. */
+.button-background {
+  transition:
+    background-color var(--fg-motion-fast) var(--fg-ease),
+    border-color var(--fg-motion-fast) var(--fg-ease);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .button-background img {
     transition: transform var(--fg-press-up, 220ms)
@@ -5881,11 +6671,47 @@ patch_jar(BUILD / "omni.ja", MAIN_EDITS, sweep=True,
                    ("chrome/toolkit/content/global/megalist/megalist.css", MEGALIST_CSS)])
 # Both newtab stylesheets get the same four blocks. The dialog rules land in
 # both because classic and nova each ship their own copy of the modal.
+NEWTAB_PATTERN_SVG = (ROOT / "branding" / "newtab-pattern.svg").read_text()
+
+
+def newtab_pattern_url(color):
+    return "data:image/svg+xml," + quote(
+        NEWTAB_PATTERN_SVG.replace("#e0e0e0", color), safe=""
+    )
+
+
+NEWTAB_PATTERN_CSS = f"""
+/* Topography background on the plain new tab. The line color follows the
+ * theme divider, and the page background follows the theme surface. */
+:root {{
+  --fg-newtab-pattern: url("{newtab_pattern_url("#e0e0e0")}");
+}}
+@media (prefers-color-scheme: dark) {{
+  :root {{
+    --fg-newtab-pattern: url("{newtab_pattern_url("#2f2f2f")}");
+  }}
+}}
+body:not(.lightWallpaper):not(.darkWallpaper) {{
+  background-color: var(--fg-bg);
+  background-image: var(--fg-newtab-pattern);
+  background-size: 600px 600px;
+  background-position: center center;
+  background-repeat: repeat;
+}}
+"""
+
+
 NEWTAB_CSS_FILES = [
     "chrome/browser/builtin-addons/newtab/data/css/activity-stream.css",
     "chrome/browser/builtin-addons/newtab/data/css/nova/activity-stream.css",
 ]
-NEWTAB_CSS = NEWTAB_PALETTE_CSS + NEWTAB_BUTTONS_CSS + NEWTAB_DIALOG_CSS + NEWTAB_TWEAKS_CSS
+NEWTAB_CSS = (
+    NEWTAB_PALETTE_CSS
+    + NEWTAB_BUTTONS_CSS
+    + NEWTAB_DIALOG_CSS
+    + NEWTAB_TWEAKS_CSS
+    + NEWTAB_PATTERN_CSS
+)
 
 # Default bookmarks ship Mozilla links that surface in the urlbar and add
 # noise. An empty folder keeps new profiles clean, added bookmarks still

@@ -96,8 +96,11 @@ pref("firegila.sidebar.width", 0);
 // Auto-hide tabs. The column floats at the window edge, collapsed until the
 // pointer reaches the edge. Off by default.
 pref("firegila.sidebar.autoHideTabs", false);
-// Tabs on the opposite side. Works with auto-hide on or off. Off by default,
-// so tabs sit next to the strip.
+// Auto-collapse tabs. The column keeps the sidebar strip width, shows tab
+// icons only, and expands to the full vertical bar on hover. Off by default.
+pref("firegila.sidebar.autoCollapseTabs", false);
+// Tabs on the opposite side. Works with auto-hide or auto-collapse on. Off by
+// default, so tabs sit next to the strip.
 pref("firegila.sidebar.tabsOpposite", false);
 // Website panels
 // The toggle adds a divider, one button per saved site and a plus button to

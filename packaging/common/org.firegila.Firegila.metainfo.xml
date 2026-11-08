@@ -13,7 +13,6 @@
     </p>
   </description>
   <launchable type="desktop-id">firegila.desktop</launchable>
-  <url type="homepage">https://firegila.org/</url>
   <developer id="org.firegila">
     <name>Firegila</name>
   </developer>

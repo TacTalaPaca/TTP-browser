@@ -15,7 +15,7 @@ Firegila/
   LICENSE                  # MPL-2.0
   DEV.md                   # commands for working on the project
   app-icons/               # firegila-512/1024/2048.png (transparent masters)
-  branding/                # firegila.desktop, launcher script
+  branding/                # desktop entry, launcher, newtab pattern
   configs/                 # policies.json, firegila.js, distribution.ini
   packaging/               # deb, rpm, arch, appimage and metainfo templates
   scripts/
@@ -107,21 +107,29 @@ changes are overlays on the unpacked tarball, applied by
 - Vertical tabs live in their own 220px column after the strip, next to the
   panel, so the order is strip, tabs, panel. The strip keeps its buttons
   and layout either way, never expands, never resizes. The hide/show button
-  hides and shows strip, tabs and panel together. Tabs are 32px in both
-  orientations. The 16px icon and the 16px close button box sit on the same
-  8px margin on all sides, with an 8px gap between icon and label. The New
-  Tab button is a 32px square in the horizontal strip and a 32px row in the
-  vertical one.
+  hides and shows the strip and panel only, the tabs column stays visible.
+  Tabs are 32px in both orientations. The 16px icon and the 16px close button
+  box sit on the same 8px margin on all sides, with an 8px gap between icon
+  and label. The New Tab button is a 32px square in the horizontal strip and
+  a 32px row in the vertical one.
 - The sidebar settings offer Auto-hide tabs. With it on the tabs column floats
   over the strip and panel and slides in with a transform, so nothing reflows
   and the surface moves with its content. It stays collapsed until the pointer
   reaches the window edge, and a 3px sensor there keeps the reveal working over
   a page or its scrollbar. It replaces the stock expand on hover setting, which
   reflowed the whole sidebar.
+- Auto-collapse tabs keeps the column in layout at the sidebar strip width,
+  showing tab icons only. Hovering it expands the full vertical tab bar and
+  leaving it collapses back. Auto-hide and auto-collapse are mutually
+  exclusive.
+- Pinned tabs sit in a four-column grid at the top of the column, 32px tall
+  with the same 4px gaps and margins. A collapsed strip shows one column.
+  Opening the bar slides the grid to the full layout, so the selected pin
+  stays in view and its row and order do not change.
 - The sidebar settings also offer Tabs on the opposite side. It puts the tabs
   column at the far edge, away from the strip and panel. Works with auto-hide
-  on or off, and follows the sidebar when it is moved to the right. The column
-  keeps the tab bar surface there.
+  or auto-collapse, and follows the sidebar when it is moved to the right. The
+  column keeps the tab bar surface there.
 - Add websites to sidebar puts a divider, one button per saved site and a plus
   button in the strip. The add form starts with the current page URL filled
   in when that page is http or https. A saved site opens as a web panel with
@@ -174,6 +182,8 @@ changes are overlays on the unpacked tarball, applied by
 - Logo stays centered at any row count. All slots stay visible, so the add
   tile is never hidden on narrow windows. Weather widget on with explicit
   endpoints. No stories, highlights or shopping content.
+- The plain new tab shows a subtle topography pattern in the divider color.
+  A wallpaper replaces it.
 - Wallpapers offer only the custom upload from the PC. The stock Firefox
   wallpaper list and the solid color picker are dropped. Uploads appear in a
   scrollable grid inside the Wallpapers panel. Up to 100 are kept, and a new
@@ -197,17 +207,18 @@ changes are overlays on the unpacked tarball, applied by
   the 1px accent border. The rule is the same for vertical and horizontal
   tabs. The close button box is 16px on every tab, on the same 8px margin as
   the tab icon.
+- Hover and selected fills fade on the fast token across tabs, toolbar
+  buttons, sidebar buttons and new tab tiles.
 - Design system buttons and the tab close button shrink their glyph while
-  pressed. XUL toolbar buttons keep their box and use the stock background
-  press, so the button face never shrinks on click.
+  pressed. Nav bar buttons keep the stock square icon face and hover fill. On
+  press the face scales, except for menu buttons, whose panels need a fixed
+  anchor.
 - Popup panels fade in over the fast token, with no slide. The extensions
   panel used the stock 70px slide, which read as a bounce.
-- The page content area is flat. No outline around it, no rounded corner next
-  to the sidebar.
+- The page content area has square corners and a subtle 1px border. No
+  outline around it. The sidebar panel has no divider on the strip side.
 - The tab strip has no list all tabs button and no Firefox View button by
   default. Both are out of the default layout.
-- Selected and inactive tabs share one neutral border color. The system
-  accent stays on focus rings and controls, not on tab borders.
 - Urlbar row hover and selected states follow the neutral ramp. Text fields,
   selects and dropdowns get a single border, accent on focus.
 
