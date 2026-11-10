@@ -16,8 +16,8 @@ DEB_ARCH="amd64"
 # System libraries used by the bundled libxul. The tarball ships its own NSS,
 # NSPR, AV codecs, sqlite and onnxruntime, so those are not listed.
 DEB_DEPENDS="libgtk-3-0, libdbus-glib-1-2, libasound2, libpulse0, libx11-6, libx11-xcb1, libxcb1, libxcb-shm0, libxcomposite1, libxdamage1, libxfixes3, libxrandr2, libxt6, libgbm1, libdrm2, libglib2.0-0, libstdc++6, libatomic1, libfontconfig1, libfreetype6, libharfbuzz0b, libsqlite3-0, libxkbcommon0, libpango-1.0-0, libcairo2, libgdk-pixbuf-2.0-0, libatk1.0-0, libatk-bridge2.0-0, libatspi2.0-0, libepoxy0, libseccomp2, libffi8, libexpat1, libbz2-1.0, libbrotli1, libjson-glib-1.0-0, libcloudproviders0"
-RPM_DEPENDS="gtk3 dbus-glib alsa-lib pulseaudio-libs libX11 libX11-xcb libxcb libXcomposite libXdamage libXfixes libXrandr libXt mesa-libgbm libdrm glib2 libstdc++ libatomic fontconfig freetype harfbuzz sqlite-libs libxkbcommon pango cairo gdk-pixbuf2 atk at-spi2-atk at-spi2-core libepoxy libseccomp libffi expat bzip2-libs brotli json-glib libcloudproviders"
-ARCH_DEPENDS="gtk3 dbus-glib alsa-lib libpulse libx11 libxcb libxcomposite libxdamage libxfixes libxrandr libxt libgbm libdrm glib2 gcc-libs fontconfig freetype2 harfbuzz sqlite libxkbcommon pango cairo gdk-pixbuf2 atk at-spi2-atk at-spi2-core libepoxy libseccomp libffi expat bzip2 brotli json-glib libcloudproviders"
+RPM_DEPENDS="gtk3 dbus-glib alsa-lib pulseaudio-libs libX11 libX11-xcb libxcb libXcomposite libXdamage libXfixes libXrandr libXt mesa-libgbm libdrm glib2 libstdc++ libatomic fontconfig freetype harfbuzz sqlite-libs libxkbcommon pango cairo gdk-pixbuf2 atk at-spi2-core libepoxy libseccomp libffi expat bzip2-libs brotli json-glib libcloudproviders"
+ARCH_DEPENDS="gtk3 dbus-glib alsa-lib libpulse libx11 libxcb libxcomposite libxdamage libxfixes libxrandr libxt mesa libdrm glib2 gcc-libs fontconfig freetype2 harfbuzz sqlite libxkbcommon pango cairo gdk-pixbuf2 atk at-spi2-core libepoxy libseccomp libffi expat bzip2 brotli json-glib libcloudproviders"
 
 require_build() {
   [ -x "$BUILD/firegila" ] || {
