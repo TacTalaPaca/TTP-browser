@@ -8,6 +8,7 @@ Exec=firegila %u
 Icon=firegila
 Terminal=false
 Categories=Network;WebBrowser;
+Keywords=firefox;browser;web;internet;
 MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/vnd.mozilla.xul+xml;application/rss+xml;application/rdf+xml;image/gif;image/jpeg;image/png;x-scheme-handler/http;x-scheme-handler/https;
 StartupNotify=true
 StartupWMClass=Firegila

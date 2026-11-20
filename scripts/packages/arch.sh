@@ -11,12 +11,17 @@ trap 'rm -rf "$work"' EXIT
 sed -e "s/@VERSION@/$VERSION/" \
     -e "s/@REVISION@/$REVISION/" \
     -e "s|@DEPENDS@|$ARCH_DEPENDS|" \
+    -e "s|@SUMMARY@|$SUMMARY|" \
+    -e "s|@LICENSE_MPL@|$LICENSE_MPL|" \
+    -e "s|@LICENSE_GPL@|$LICENSE_GPL|" \
+    -e "s|@HOMEPAGE@|$HOMEPAGE|" \
     -e "s|@STAGE@|$stage|" \
     "$ROOT/packaging/arch/PKGBUILD.in" > "$work/PKGBUILD"
+cp "$ROOT/packaging/arch/firegila.install" "$work/firegila.install"
 
 (
   cd "$work"
-  makepkg -f --nodeps --noconfirm
+  PACKAGER="$MAINTAINER" makepkg -f --nodeps --noconfirm
 )
 
 cp "$work"/firegila-"${VERSION}"-"${REVISION}"-x86_64.pkg.tar.zst "$OUT/"

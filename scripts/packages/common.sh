@@ -12,6 +12,13 @@ BUILD="$ROOT/build/firefox"
 OUT="$ROOT/packages/$VERSION"
 ARCH="x86_64"
 DEB_ARCH="amd64"
+MAINTAINER="David Danuja <contact@tactalapaca.com>"
+VENDOR="TacTalaPaca"
+HOMEPAGE="https://github.com/TacTalaPaca/TTP-browser"
+SUMMARY="Neutral web browser based on Firefox ESR"
+LICENSE_MPL="MPL-2.0"
+LICENSE_GPL="GPL-3.0-or-later"
+LICENSE="$LICENSE_MPL AND $LICENSE_GPL"
 
 # System libraries used by the bundled libxul. The tarball ships its own NSS,
 # NSPR, AV codecs, sqlite and onnxruntime, so those are not listed.
@@ -26,7 +33,22 @@ require_build() {
   }
 }
 
+# Release bullets for the current version, without the Markdown dash.
+changelog_bullets() {
+  awk -v ver="$VERSION" '
+    $0 == "## " ver { found = 1; next }
+    found && /^## / { exit }
+    found && /^- / { sub(/^- /, ""); print }
+  ' "$ROOT/CHANGELOG.md"
+}
+
 prepare_out() {
+  if [ -d "$OUT" ] && \
+    [ -n "$(find "$OUT" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
+    echo "package: $OUT already exists" >&2
+    echo "package: remove it after approval or bump VERSION" >&2
+    exit 1
+  fi
   rm -rf "$OUT"
   mkdir -p "$OUT"
 }
@@ -56,7 +78,10 @@ stage_root() {
     "$dest/usr/share/icons/hicolor/512x512/apps/firegila.png"
   cp "$ROOT/packaging/common/org.firegila.Firegila.metainfo.xml" \
     "$dest/usr/share/metainfo/org.firegila.Firegila.metainfo.xml"
-  cp "$ROOT/README.md" "$ROOT/LICENSE" "$dest/usr/share/doc/firegila/"
+  cp "$ROOT/README.md" "$ROOT/LICENSE" "$ROOT/CHANGELOG.md" \
+    "$dest/usr/share/doc/firegila/"
+  cp "$ROOT/packaging/common/copyright" \
+    "$dest/usr/share/doc/firegila/copyright"
 }
 
 write_buildinfo() {

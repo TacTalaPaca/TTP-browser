@@ -12,6 +12,7 @@ Nothing is cleared on exit.
 Firegila/
   VERSION                  # Firegila release version
   ESR_VERSION              # ESR version pin
+  CHANGELOG.md             # release history
   LICENSE                  # MPL-2.0
   DEV.md                   # commands for working on the project
   app-icons/               # firegila-512/1024/2048.png (transparent masters)
@@ -59,7 +60,8 @@ Notes:
 - Theme: neutral palette in Dark, Light and System themes, system accent, no brand colors.
   System follows the OS scheme with the same styles. Content pages follow the same palette.
 - Source is MPL-2.0, see `LICENSE`. The bundled Firefox binary keeps its own
-  MPL notice.
+  MPL notice. The bundled uBlock Origin extension keeps its GPL-3.0-or-later
+  license.
 
 ## Changes from stock Firefox ESR
 
@@ -126,6 +128,10 @@ changes are overlays on the unpacked tarball, applied by
   with the same 4px gaps and margins. A collapsed strip shows one column.
   Opening the bar slides the grid to the full layout, so the selected pin
   stays in view and its row and order do not change.
+- Tab groups use a folder label tinted with the group color in both tab
+  orientations. A chevron shows open or closed. Grouped tabs take a matching
+  border and tint and stay aligned with the strip. An unnamed horizontal group
+  is a 32px folder tile. A collapsed strip shows a 32px folder tile.
 - The sidebar settings also offer Tabs on the opposite side. It puts the tabs
   column at the far edge, away from the strip and panel. Works with auto-hide
   or auto-collapse, and follows the sidebar when it is moved to the right. The
@@ -166,8 +172,8 @@ changes are overlays on the unpacked tarball, applied by
   every workspace, because the API cannot hide them safely.
 - An empty workspace opens one new tab on switch. Names are 24 characters at
   most, 12 workspaces at most.
-- Audio from another workspace marks the switcher with a 6px system accent
-  dot. The same dot marks the sidebar button and a website button when audio
+- Audio from another workspace marks the switcher with a 6px neutral dot.
+  The same dot marks the sidebar button and a website button when audio
   plays there.
 - Settings > Tabs and browsing has the workspace switches and both scroll
   switches.
@@ -198,17 +204,21 @@ changes are overlays on the unpacked tarball, applied by
 
 ### Theme
 
-- Neutral gray ramp in every theme, system accent color instead of brand
-  colors, 8px radius on controls, 6px on menu rows, no shadows. Forced colors
-  and user installed themes are left alone. Light and dark use the same
-  contrast steps for chrome, cards, borders and dim text. The section divider
-  is a separate token, so it stays visible without reading as a hard line.
+- Neutral gray ramp in every theme, system UI font, system accent color instead
+  of brand colors, 8px radius on controls, no shadows. Forced colors and user
+  installed themes are left alone. Light and dark use the same contrast steps
+  for chrome, cards, borders and dim text. The section divider is a separate
+  token, so it stays visible without reading as a hard line.
+- Right click menus use stock Firefox menu styling. No custom menu background,
+  border, padding or radius. The rest of the browser keeps the Firegila theme.
 - Background tabs carry a 1px border on their fill. The selected tab keeps
   the 1px accent border. The rule is the same for vertical and horizontal
   tabs. The close button box is 16px on every tab, on the same 8px margin as
   the tab icon.
 - Hover and selected fills fade on the fast token across tabs, toolbar
   buttons, sidebar buttons and new tab tiles.
+- Audio indicators use the shared neutral token. Tab audio and mute indicators
+  use the native compact overlay in the collapsed strip.
 - Design system buttons and the tab close button shrink their glyph while
   pressed. Nav bar buttons keep the stock square icon face and hover fill. On
   press the face scales, except for menu buttons, whose panels need a fixed
@@ -226,6 +236,11 @@ changes are overlays on the unpacked tarball, applied by
 
 - Scroll over the tab strip switches tabs, and over the workspace switcher
   switches workspaces. Middle click starts autoscroll. All on by default.
+- Dragging a tab shows Split view and New window drop targets. Drop on either
+  to split the tab with its nearest tab or move it to a new window.
+- Settings > Shortcuts lists every main browser shortcut. Each one can be
+  rebound or reset, and the choice is stored per profile.
+- Copy Page Link sits in the page context menu and on Ctrl+Shift+L.
 - Session restore is on by default. The next start reopens the same windows
   and tabs, including tabs hidden in other workspaces, and loads them all.
   Users can still choose a fresh start in settings.
@@ -244,6 +259,8 @@ changes are overlays on the unpacked tarball, applied by
   creation path.
 - HTTPS only mode on, query stripping on. First run and post update pages
   blank. Onboarding and feature recommendations skipped.
+- Strict tracking protection by default. Tell sites not to sell or share data
+  is on by default.
 - Updates off, Mozilla builds would replace this package.
 - Search: DuckDuckGo default, Ecosia added, Bing, Wikipedia and Perplexity
   removed.

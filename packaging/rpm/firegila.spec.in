@@ -4,9 +4,12 @@
 Name:           firegila
 Version:        @VERSION@
 Release:        @REVISION@%{?dist}
-Summary:        Firefox ESR based web browser
-License:        MPL-2.0
-URL:            https://firegila.org/
+Summary:        @SUMMARY@
+License:        @LICENSE@
+URL:            @HOMEPAGE@
+Vendor:         @VENDOR@
+Packager:       @MAINTAINER@
+Group:          Applications/Internet
 Source0:        firegila-%{version}.tar.gz
 BuildArch:      x86_64
 AutoReqProv:    no

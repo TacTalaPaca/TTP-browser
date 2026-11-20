@@ -128,6 +128,7 @@ GLOBAL_OVERRIDE_CSS = (
     + "    --text-color: light-dark(#171717, #fafafa);\n"
     + "    --text-color-disabled: light-dark(#9f9f9f, #777777);\n"
     + "    --text-color-deemphasized: light-dark(#5b5b5b, #b8b8b8);\n"
+    + "    --fg-audio: light-dark(#5b5b5b, #b8b8b8);\n"
     + "    --text-color-accent-primary-selected: AccentColorText;\n"
     + "    --color-accent-primary: AccentColor;\n"
     + "    --color-accent-primary-hover: color-mix(in srgb, black 12%, AccentColor);\n"
@@ -149,8 +150,8 @@ GLOBAL_OVERRIDE_CSS = (
     # Motion. One set of timings and one curve for the whole browser. Anything
     # that animates reads these, so nothing drifts apart. The sidebar
     # animation reads them back out in JS, see SB_BOOTSTRAP_JS.
-    + "    --fg-motion-fast: 120ms;\n"
-    + "    --fg-motion-base: 180ms;\n"
+    + "    --fg-motion-fast: 80ms;\n"
+    + "    --fg-motion-base: 140ms;\n"
     + "    --fg-ease: ease;\n"
     + "    --fg-press-down: 90ms;\n"
     + "    --fg-press-up: 220ms;\n"
@@ -253,9 +254,7 @@ GLOBAL_OVERRIDE_CSS = (
     + "    --border-radius-large: 8px;\n"
     + "    --border-radius-xlarge: 8px;\n"
     + "    --border-radius-xxlarge: 8px;\n"
-    + "    --panel-border-radius: 8px;\n"
     + "    --panel-menuitem-border-radius: calc(8px - 4px);\n"
-    + "    --menuitem-border-radius: calc(8px - 4px);\n"
     + "    --panel-list-border-radius: 8px;\n"
     + "    --button-border-radius: 8px;\n"
     + "    --toolbarbutton-border-radius: 8px;\n"
@@ -265,6 +264,15 @@ GLOBAL_OVERRIDE_CSS = (
     + "    --card-border-radius: 8px;\n"
     + "    --tab-border-radius: 8px;\n"
     + "    accent-color: AccentColor;\n"
+    + "  }\n"
+    # Menus follow the platform geometry and colors. The rest of the chrome
+    # stays on the Firegila theme.
+    + "  menupopup {\n"
+    + "    --border-radius-xsmall: 2px;\n"
+    + "    --panel-box-shadow: 0 0 var(--panel-box-shadow-margin) hsla(0, 0%, 0%, 0.2);\n"
+    + "    --panel-separator-color: color-mix(in srgb, currentColor 25%, transparent);\n"
+    + "    --text-color-disabled: color-mix(in srgb, currentColor 40%, transparent);\n"
+    + "    --text-color-deemphasized: color-mix(in srgb, currentColor 69%, transparent);\n"
     + "  }\n"
     + "  :root .toolbarbutton-1 {\n"
     + "    align-items: center !important;\n"
@@ -292,12 +300,12 @@ GLOBAL_OVERRIDE_CSS = (
     + "    border-radius: calc(var(--urlbar-border-radius) - 2px) !important;\n"
     + "  }\n"
     + "  @media (prefers-color-scheme: dark) {\n"
-    + "    :root, :root #navigator-toolbox, :root toolbar, :root panel, :root menupopup {\n"
+    + "    :root, :root #navigator-toolbox, :root toolbar, :root panel {\n"
     + "      color-scheme: dark !important;\n"
     + "    }\n"
     + "  }\n"
     + "  @media (prefers-color-scheme: light) {\n"
-    + "    :root, :root #navigator-toolbox, :root toolbar, :root panel, :root menupopup {\n"
+    + "    :root, :root #navigator-toolbox, :root toolbar, :root panel {\n"
     + "      color-scheme: light !important;\n"
     + "    }\n"
     + "  }\n"
@@ -730,14 +738,14 @@ NEWTAB_PALETTE_CSS = """
 NEWTAB_BUTTONS_CSS = """
 /* Motion tokens. Same names and values as the chrome theme. */
 :root {
-  --fg-motion-fast: 120ms;
-  --fg-motion-base: 180ms;
+  --fg-motion-fast: 80ms;
+  --fg-motion-base: 140ms;
   --fg-ease: ease;
   --fg-press-down: 90ms;
   --fg-press-up: 220ms;
   --fg-press-ease: cubic-bezier(0.2, 0, 0, 1);
   --fg-press-ease-down: cubic-bezier(0.3, 0, 0.2, 1);
-  --fg-fade-label: 160ms;
+  --fg-fade-label: 120ms;
 }
 /* Firegila newtab action buttons. Darker neutral fill in dark mode. */
 .personalize-button,
@@ -1001,6 +1009,81 @@ BROWSER_EDITS = {
           <menuitem id="firegila-workspace-delete" data-l10n-id="firegila-workspace-delete"/>
         </menupopup>
       </toolbarbutton>
+"""),
+        # The pin drop section is removed completely. Dragging never creates
+        # a pinned tab now, so the indicator and promo have no purpose.
+        ("""          <div id="pinned-drop-indicator">
+            <html:img id="pinned-drop-indicator-icon" src="chrome://browser/skin/pin.svg" role="presentation" loading="lazy"/>
+            <span id="pinned-drop-indicator-text" data-l10n-id="pinned-tabs-drop-indicator"></span>
+          </div>
+          <html:sidebar-pins-promo id="drag-to-pin-promo-card"></html:sidebar-pins-promo>
+""", ""),
+        # Page link command, context menu item and shortcut.
+        ("""    <command id="Browser:DuplicateTab" />
+""",
+         """    <command id="Browser:DuplicateTab" />
+    <command id="firegila-cmd-copy-page-link" />
+"""),
+        ("""<key id="key_duplicateTab" command="Browser:DuplicateTab"/>
+""",
+         """<key id="key_duplicateTab" command="Browser:DuplicateTab"/>
+<key id="key_firegilaCopyPageLink" data-l10n-id="firegila-copy-page-link" command="firegila-cmd-copy-page-link" key="L" modifiers="accel,shift"/>
+"""),
+        ("""      <menuitem id="context-selectall"
+                data-l10n-id="text-action-select-all"
+                command="cmd_selectAll"/>
+""",
+         """      <menuitem id="context-selectall"
+                data-l10n-id="text-action-select-all"
+                command="cmd_selectAll"/>
+      <menuseparator id="firegila-context-sep-page-link"/>
+      <menuitem id="firegila-context-copy-page-link"
+                data-l10n-id="firegila-context-copy-page-link"
+                command="firegila-cmd-copy-page-link"/>
+"""),
+    ],
+    # Dragging never turns a tab into a pinned tab. The pin drop section is
+    # hidden and the stock flag is forced off, so the drag stays under the
+    # pointer instead of snapping to the pinned area.
+    "chrome/browser/content/browser/tabbrowser/drag-and-drop.js": [
+        ("""        let shouldPin =
+          movingTabs.some(t => isTab(t)) &&
+          !draggedTab.pinned &&
+          (overPinnedDropIndicator ||
+            dragToPinTargets.some(el => el.contains(event.target)));
+""",
+         """        let shouldPin = false;
+"""),
+        ("""      this._pinnedDropIndicator = document.getElementById(
+        "pinned-drop-indicator"
+      );
+      this._dragToPinPromoCard = document.getElementById(
+        "drag-to-pin-promo-card"
+      );
+""",
+         """      this._pinnedDropIndicator =
+        document.getElementById("pinned-drop-indicator") ||
+        document.createXULElement("box");
+      this._dragToPinPromoCard =
+        document.getElementById("drag-to-pin-promo-card") ||
+        document.createXULElement("box");
+      this._dragToPinPromoCard.shouldRender = false;
+"""),
+        ("""      let pinnedDropIndicator = draggedTabDocument.getElementById(
+        "pinned-drop-indicator"
+      );
+      let draggedTabContainer =
+        draggedTabDocument.documentGlobal.gBrowser.tabContainer;
+      pinnedDropIndicator.removeAttribute("visible");
+      pinnedDropIndicator.removeAttribute("interactive");
+""",
+         """      let pinnedDropIndicator = draggedTabDocument.getElementById(
+        "pinned-drop-indicator"
+      );
+      let draggedTabContainer =
+        draggedTabDocument.documentGlobal.gBrowser.tabContainer;
+      pinnedDropIndicator?.removeAttribute("visible");
+      pinnedDropIndicator?.removeAttribute("interactive");
 """),
     ],
     # The sidebar menu belongs to the strip in vertical tabs mode too. Stock
@@ -1303,7 +1386,9 @@ BROWSER_EDITS = {
          "firegila-workspace-name-empty = Enter a name.\n\n"
          "firegila-workspace-name-taken = That name is already used.\n\n"
          "firegila-workspace-limit = You can add up to 12 workspaces.\n\n"
-         "firegila-workspace-delete-text = Delete \"{ $name }\" and close its { $count } tabs?"),
+         "firegila-workspace-delete-text = Delete \"{ $name }\" and close its { $count } tabs?\n\n"
+         "firegila-tab-drop-split = Split view\n\n"
+         "firegila-tab-drop-window = New window"),
     ],
     # Bookmarks use the same card surface as history, open tabs and the
     # customizer. The stock page drops the list straight into the panel.
@@ -1578,7 +1663,39 @@ SettingGroupManager.registerGroups({
     ],
 """),
     ],
+    "chrome/browser/content/browser/preferences/preferences.xhtml": [
+        ("""      <html:moz-page-nav-button id="category-tabs-browsing"
+        view="paneTabsBrowsing"
+        iconsrc="chrome://global/skin/icons/cursor-arrow.svg"
+        data-l10n-id="pane-tabs-browsing-title2">
+      </html:moz-page-nav-button>
+""",
+         """      <html:moz-page-nav-button id="category-tabs-browsing"
+        view="paneTabsBrowsing"
+        iconsrc="chrome://global/skin/icons/cursor-arrow.svg"
+        data-l10n-id="pane-tabs-browsing-title2">
+      </html:moz-page-nav-button>
+      <html:moz-page-nav-button id="category-shortcuts"
+        view="paneShortcuts"
+        iconsrc="chrome://global/skin/icons/settings.svg"
+        data-l10n-id="firegila-shortcuts-section">
+      </html:moz-page-nav-button>
+"""),
+    ],
     "chrome/browser/content/browser/preferences/preferences.js": [
+        ("""  tabsBrowsing: {
+    l10nId: "tabs-browsing-section",
+""", """  shortcuts: {
+    l10nId: "firegila-shortcuts-section",
+    iconSrc: "chrome://global/skin/icons/settings.svg",
+    groupIds: ["firegilaShortcuts"],
+    module:
+      "chrome://browser/content/preferences/config/firegila-shortcuts.mjs",
+    visible: () => true,
+  },
+  tabsBrowsing: {
+    l10nId: "tabs-browsing-section",
+"""),
         ("""  containers: {
     parent: srdSectionEnabled("tabsBrowsing") ? "tabsBrowsing" : "general",
     l10nId: "containers-section-header2",
@@ -2705,6 +2822,14 @@ TAB_CSS = """
     background-color var(--fg-motion-fast) var(--fg-ease),
     border-color var(--fg-motion-fast) var(--fg-ease);
 }
+.tab-audio-button::part(button) {
+  -moz-context-properties: fill;
+  fill: var(--fg-audio);
+}
+.tab-icon-overlay:is([soundplaying], [muted], [activemedia-blocked]) {
+  -moz-context-properties: fill;
+  fill: var(--fg-audio);
+}
 #tabbrowser-tabs[orient="horizontal"]::before {
   display: none !important;
 }
@@ -2794,7 +2919,614 @@ TAB_CSS = """
 }
 """
 
-# Flat content area. Stock draws a hairline outline around the page and rounds
+# Tab groups. Folder labels use the group color and grouped tabs use a tint.
+TAB_GROUP_CSS = """
+/* Tab groups. Folder labels use the group color and grouped tabs use a tint.
+ * One set of tokens drives both orientations and every interaction state. */
+
+:root {
+  --fg-group-label-pad: 24px;
+  --fg-group-label-max-width: 10em;
+  --fg-group-icon-size: 14px;
+  --fg-group-chevron-size: 12px;
+  --fg-group-chevron-size-compact: 8px;
+  --fg-group-border-width: 1px;
+  --fg-group-border-mix: 55%;
+  --fg-group-border-mix-strong: 75%;
+  --fg-group-tint: 18%;
+  --fg-group-tint-closed: 24%;
+  --fg-group-tint-hover: 26%;
+  --fg-group-tint-active: 32%;
+  --fg-tab-row-height: calc(var(--tab-min-height) + 2 * var(--fg-tabs-tab-padding));
+}
+
+/* The stock group line and the overflow count are removed in both
+ * orientations. The chevron on the folder label carries the state instead. */
+.tab-group-line,
+.tab-group-label-container::after,
+.tab-group-overflow-count-container,
+.tab-group-overflow-count {
+  display: none !important;
+}
+
+tab-group {
+  --fg-group-accent: var(
+    --tab-group-background-color,
+    var(--tab-group-color)
+  );
+  --fg-group-base: var(--fg-tab-bg);
+  --fg-group-hover: var(--fg-tab-bg-hover);
+}
+
+:root[fg-tabs-opposite] tab-group {
+  --fg-group-base: var(--fg-tab-bg-opposite);
+  --fg-group-hover: var(--fg-tab-bg-opposite-hover);
+}
+
+/* Grouped tabs. The group color is only a tint on the tab surface. */
+tab-group > .tabbrowser-tab > .tab-stack > .tab-background,
+tab-group > tab-split-view-wrapper .tabbrowser-tab > .tab-stack > .tab-background {
+  border-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-border-mix), var(--fg-tab-border)) !important;
+  background-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-tint), var(--fg-group-base)) !important;
+}
+
+tab-group > .tabbrowser-tab:not([selected], [multiselected]):hover > .tab-stack > .tab-background,
+tab-group > tab-split-view-wrapper .tabbrowser-tab:not([selected], [multiselected]):hover > .tab-stack > .tab-background {
+  border-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-border-mix-strong), var(--fg-tab-border)) !important;
+  background-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-tint-hover), var(--fg-group-hover)) !important;
+}
+
+tab-group > .tabbrowser-tab:not([selected], [multiselected]):active > .tab-stack > .tab-background,
+tab-group > tab-split-view-wrapper .tabbrowser-tab:not([selected], [multiselected]):active > .tab-stack > .tab-background {
+  background-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-tint-active), var(--fg-group-hover)) !important;
+}
+
+tab-group > .tabbrowser-tab[selected] > .tab-stack > .tab-background,
+tab-group > .tabbrowser-tab[multiselected] > .tab-stack > .tab-background,
+tab-group > tab-split-view-wrapper .tabbrowser-tab[selected] > .tab-stack > .tab-background,
+tab-group > tab-split-view-wrapper .tabbrowser-tab[multiselected] > .tab-stack > .tab-background {
+  border-color: AccentColor !important;
+  background-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-tint-hover), var(--tab-background-color-selected)) !important;
+}
+
+#tabbrowser-tabs[orient="vertical"][expanded] tab-group > .tabbrowser-tab {
+  margin-inline-start: 0 !important;
+}
+
+/* The label row uses the same outer box as a tab row. */
+.tab-group-label-container {
+  position: relative;
+  contain: none !important;
+}
+
+#tabbrowser-tabs[orient="vertical"] .tab-group-label-container {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: calc(100% - 2 * var(--fg-tabs-margin)) !important;
+  margin: 0 var(--fg-tabs-margin) !important;
+  padding: var(--fg-tabs-tab-padding) 0 !important;
+}
+
+#tabbrowser-tabs[orient="vertical"][expanded] tab-group > .tab-group-label-container {
+  margin-inline: var(--fg-tabs-margin) !important;
+}
+
+#tabbrowser-tabs[orient="horizontal"] .tab-group-label-container {
+  flex: 0 0 auto;
+  margin: 0 var(--fg-tabs-tab-padding) !important;
+  padding: 0 !important;
+}
+
+.tab-group-label-hover-highlight {
+  box-sizing: border-box;
+  align-self: stretch;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.tab-group-label {
+  position: relative;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: var(--tab-min-height);
+  height: var(--tab-min-height);
+  min-height: var(--tab-min-height);
+  margin: 0 !important;
+  padding: 0 var(--fg-group-label-pad) !important;
+  border: var(--fg-group-border-width) solid color-mix(in srgb, var(--fg-group-accent) var(--fg-group-border-mix), var(--fg-tab-border)) !important;
+  border-radius: var(--fg-radius) !important;
+  border-end-start-radius: var(--fg-radius) !important;
+  background-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-tint), var(--fg-group-base)) !important;
+  color: var(--fg-group-accent) !important;
+  font-weight: var(--font-weight-semibold) !important;
+  line-height: calc(var(--tab-min-height) - 2 * var(--fg-group-border-width)) !important;
+  text-align: center;
+  text-shadow: none !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition:
+    background-color var(--fg-motion-fast) var(--fg-ease),
+    border-color var(--fg-motion-fast) var(--fg-ease);
+}
+
+.tab-group-label:not(.tablist-keyboard-focus) {
+  outline: none !important;
+}
+
+/* Folder icon and state chevron. A down chevron means open, a side chevron
+ * means closed. The transform uses the shared fast motion token. */
+.tab-group-label::before,
+.tab-group-label::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 50%;
+  background-position: center;
+  background-repeat: no-repeat;
+  -moz-context-properties: fill;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+.tab-group-label::before {
+  inset-inline-start: var(--fg-tabs-inset);
+  width: var(--fg-group-icon-size);
+  height: var(--fg-group-icon-size);
+  transform: translateY(-50%);
+  background-image: url("chrome://global/skin/icons/folder.svg");
+  background-size: var(--fg-group-icon-size);
+}
+
+.tab-group-label::after {
+  inset-inline-end: var(--fg-tabs-inset);
+  width: var(--fg-group-chevron-size);
+  height: var(--fg-group-chevron-size);
+  transform: translateY(-50%);
+  background-image: url("chrome://global/skin/icons/arrow-down-12.svg");
+  background-size: var(--fg-group-chevron-size);
+  opacity: 0.7;
+  transition:
+    transform var(--fg-motion-fast) var(--fg-ease),
+    opacity var(--fg-motion-fast) var(--fg-ease);
+}
+
+tab-group[collapsed] > .tab-group-label-container .tab-group-label::after {
+  transform: translateY(-50%) rotate(-90deg);
+  opacity: 1;
+}
+
+tab-group[collapsed] > .tab-group-label-container .tab-group-label:-moz-locale-dir(rtl)::after {
+  transform: translateY(-50%) rotate(90deg);
+}
+
+/* A closed folder reads as a denser tint and a stronger border. */
+tab-group[collapsed] > .tab-group-label-container .tab-group-label {
+  background-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-tint-closed), var(--fg-group-base)) !important;
+  border-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-border-mix-strong), var(--fg-tab-border)) !important;
+}
+
+tab-group .tab-group-label:hover,
+tab-group[collapsed] > .tab-group-label-container .tab-group-label:hover {
+  border-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-border-mix-strong), var(--fg-tab-border)) !important;
+  background-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-tint-hover), var(--fg-group-hover)) !important;
+}
+
+tab-group .tab-group-label:hover::after {
+  opacity: 1;
+}
+
+tab-group .tab-group-label:active,
+tab-group[collapsed] > .tab-group-label-container .tab-group-label:active {
+  background-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-tint-active), var(--fg-group-hover)) !important;
+  transition-duration: var(--fg-press-down);
+}
+
+tab-group[hasactivetab] > .tab-group-label-container .tab-group-label {
+  border-color: color-mix(in srgb, var(--fg-group-accent) var(--fg-group-border-mix-strong), var(--fg-tab-border)) !important;
+}
+
+/* Vertical groups expand and collapse by animating each hidden tab row to
+ * zero height. The row keeps its box, so the strip settles in one motion and
+ * no other tab jumps. Stock hides these rows with display: none. */
+#tabbrowser-arrowscrollbox[orient="vertical"] tab-group > .tabbrowser-tab {
+  flex: 0 0 var(--fg-tab-row-height) !important;
+  height: var(--fg-tab-row-height) !important;
+  min-height: var(--fg-tab-row-height) !important;
+  max-height: var(--fg-tab-row-height) !important;
+  transition:
+    flex-basis var(--fg-tabs-motion) var(--fg-ease),
+    height var(--fg-tabs-motion) var(--fg-ease),
+    min-height var(--fg-tabs-motion) var(--fg-ease),
+    max-height var(--fg-tabs-motion) var(--fg-ease),
+    padding-block var(--fg-tabs-motion) var(--fg-ease),
+    opacity var(--fg-tabs-motion) var(--fg-ease);
+}
+
+#tabbrowser-tabs[orient="vertical"] #tabbrowser-arrowscrollbox[orient="vertical"] tab-group[collapsed]:not([movingtabgroup]) > .tabbrowser-tab:not([visuallyselected], [multiselected]) {
+  display: flex !important;
+  flex: 0 0 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding-block: 0 !important;
+  opacity: 0;
+  overflow: clip !important;
+  overflow-clip-margin: 0 !important;
+  pointer-events: none;
+}
+
+/* Horizontal groups animate the same way: the hidden tabs collapse their
+ * inline size and fade, instead of snapping out of the strip. */
+#tabbrowser-tabs[orient="horizontal"] tab-group > .tabbrowser-tab {
+  transition:
+    min-width var(--fg-tabs-motion) var(--fg-ease),
+    max-width var(--fg-tabs-motion) var(--fg-ease),
+    padding-inline var(--fg-tabs-motion) var(--fg-ease),
+    opacity var(--fg-tabs-motion) var(--fg-ease);
+}
+
+#tabbrowser-tabs[orient="horizontal"] tab-group[collapsed]:not([movingtabgroup]) > .tabbrowser-tab:not([visuallyselected], [multiselected]) {
+  opacity: 0;
+}
+
+.tab-group-label[dragover-groupTarget] {
+  outline: 1px solid AccentColor !important;
+  outline-offset: -1px;
+}
+
+/* Horizontal label. The label padding reserves the chevron. */
+#tabbrowser-tabs[orient="horizontal"] .tab-group-label {
+  width: auto;
+  max-width: var(--fg-group-label-max-width);
+  min-width: var(--tab-min-height);
+  padding-inline: var(--fg-group-label-pad) !important;
+  height: var(--tab-min-height) !important;
+  min-height: var(--tab-min-height) !important;
+  line-height: calc(var(--tab-min-height) - 2 * var(--fg-group-border-width)) !important;
+  margin: auto 0 !important;
+}
+
+/* An unnamed group is a square folder tile, the same box as a tab. */
+#tabbrowser-tabs[orient="horizontal"] tab-group[label="\\200b"] .tab-group-label {
+  width: var(--tab-min-height) !important;
+  min-width: var(--tab-min-height) !important;
+  max-width: var(--tab-min-height) !important;
+  padding: 0 !important;
+  font-size: 0;
+}
+
+#tabbrowser-tabs[orient="horizontal"] tab-group[label="\\200b"] .tab-group-label::before {
+  inset-inline-start: 50%;
+  transform: translate(calc(-50% - var(--fg-tabs-tab-padding)), -50%);
+}
+
+#tabbrowser-tabs[orient="horizontal"] tab-group[label="\\200b"] .tab-group-label:-moz-locale-dir(rtl)::before {
+  transform: translate(calc(-50% + var(--fg-tabs-tab-padding)), -50%);
+}
+
+#tabbrowser-tabs[orient="horizontal"] tab-group[label="\\200b"] .tab-group-label::after {
+  inset-inline-end: var(--fg-tabs-tab-padding);
+  width: var(--fg-group-chevron-size-compact);
+  height: var(--fg-group-chevron-size-compact);
+  background-size: var(--fg-group-chevron-size-compact);
+}
+
+#tabbrowser-tabs[orient="vertical"] .tab-group-label {
+  width: 100% !important;
+  max-width: none !important;
+  height: var(--tab-min-height) !important;
+  min-height: var(--tab-min-height) !important;
+  line-height: calc(var(--tab-min-height) - 2 * var(--fg-group-border-width)) !important;
+}
+
+/* Collapsed strip tile. Same box and spacing as a collapsed tab. */
+@container fg-tabs-width (max-width: 48px) {
+  #tabbrowser-tabs[orient="vertical"] .tab-group-label-container {
+    width: var(--tab-min-height) !important;
+    margin: 0 var(--fg-tabs-margin) !important;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] .tab-group-label {
+    width: var(--tab-min-height) !important;
+    max-width: var(--tab-min-height) !important;
+    min-width: var(--tab-min-height) !important;
+    height: var(--tab-min-height) !important;
+    min-height: var(--tab-min-height) !important;
+    padding: 0 !important;
+    font-size: 0;
+    line-height: calc(var(--tab-min-height) - 2 * var(--fg-group-border-width)) !important;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] .tab-group-label::before {
+    inset-inline-start: 50%;
+    transform: translate(calc(-50% - var(--fg-tabs-tab-padding)), -50%);
+  }
+
+  #tabbrowser-tabs[orient="vertical"] .tab-group-label:-moz-locale-dir(rtl)::before {
+    transform: translate(calc(-50% + var(--fg-tabs-tab-padding)), -50%);
+  }
+
+  #tabbrowser-tabs[orient="vertical"] .tab-group-label::after {
+    inset-inline-end: var(--fg-tabs-tab-padding);
+    width: var(--fg-group-chevron-size-compact);
+    height: var(--fg-group-chevron-size-compact);
+    background-size: var(--fg-group-chevron-size-compact);
+  }
+}
+
+/* Split view. One tab slot, two half tabs. The wrapper adds no surface,
+ * padding, gap or divider of its own. */
+
+#tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+  gap: 0 !important;
+  box-sizing: border-box;
+  flex: 0 0 auto !important;
+  width: calc(100% - 2 * var(--fg-tabs-margin)) !important;
+  height: var(--fg-tab-row-height) !important;
+  margin: 0 var(--fg-tabs-margin) !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+#tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper[hasactivetab],
+#tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper:hover {
+  background: transparent !important;
+  outline: none !important;
+}
+
+#tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tabbrowser-tab {
+  box-sizing: border-box;
+  width: 100% !important;
+  height: var(--fg-tab-row-height) !important;
+  min-height: var(--fg-tab-row-height) !important;
+  max-height: var(--fg-tab-row-height) !important;
+  flex: 1 1 auto !important;
+  margin: 0 !important;
+  padding: var(--fg-tabs-tab-padding) 0 !important;
+  border: 0 !important;
+}
+
+#tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tabbrowser-tab > .tab-stack > .tab-background {
+  box-sizing: border-box;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: var(--tab-min-height) !important;
+  min-height: var(--tab-min-height) !important;
+  margin: 0 !important;
+  border-radius: var(--fg-radius) !important;
+}
+
+#tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tabbrowser-tab:first-child > .tab-stack > .tab-background {
+  border-start-end-radius: 0 !important;
+  border-end-end-radius: 0 !important;
+  border-inline-end: 0 !important;
+}
+
+#tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tabbrowser-tab:last-child > .tab-stack > .tab-background {
+  border-start-start-radius: 0 !important;
+  border-end-start-radius: 0 !important;
+  border-inline-start: 0 !important;
+}
+
+#tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tabbrowser-tab:last-child {
+  border-inline-start: 0 !important;
+}
+
+#tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tab-content {
+  padding-inline: var(--fg-tabs-inset) !important;
+}
+
+/* Collapsed strip: one 32px tile split into two 16px rows. The inset border
+ * belongs to the tile, not to either tab, so there is no middle divider. */
+@container fg-tabs-width (max-width: 48px) {
+  #tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    width: var(--tab-min-height) !important;
+    height: var(--tab-min-height) !important;
+    margin: var(--fg-tabs-tab-padding) var(--fg-tabs-margin) !important;
+    border: 0 !important;
+    border-radius: var(--fg-radius) !important;
+    box-shadow: inset 0 0 0 1px var(--fg-tab-border) !important;
+    overflow: hidden;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper[hasactivetab] {
+    box-shadow: inset 0 0 0 1px AccentColor !important;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tabbrowser-tab {
+    height: calc(var(--tab-min-height) / 2) !important;
+    min-height: calc(var(--tab-min-height) / 2) !important;
+    max-height: calc(var(--tab-min-height) / 2) !important;
+    padding: 0 !important;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tabbrowser-tab > .tab-stack > .tab-background {
+    width: 100% !important;
+    height: calc(var(--tab-min-height) / 2) !important;
+    min-height: calc(var(--tab-min-height) / 2) !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tab-content {
+    box-sizing: border-box;
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tab-icon-image,
+  #tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tab-throbber {
+    width: 12px !important;
+    height: 12px !important;
+    margin: 0 !important;
+  }
+
+  #tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tab-close-button,
+  #tabbrowser-tabs[orient="vertical"] tab-split-view-wrapper .tab-label-container {
+    display: none !important;
+  }
+}
+
+/* Horizontal split uses the same one-slot footprint as a normal tab. */
+#tabbrowser-tabs[orient="horizontal"] tab-split-view-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+  gap: 0 !important;
+  align-items: stretch !important;
+  box-sizing: border-box;
+  flex: 100 100 !important;
+  min-width: var(--tab-min-width-pref, var(--tab-min-width)) !important;
+  max-width: var(--tab-max-width) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+#tabbrowser-tabs[orient="horizontal"] tab-split-view-wrapper[hasactivetab],
+#tabbrowser-tabs[orient="horizontal"] tab-split-view-wrapper:hover {
+  background: transparent !important;
+  outline: none !important;
+}
+
+#tabbrowser-tabs[orient="horizontal"] tab-split-view-wrapper .tabbrowser-tab {
+  box-sizing: border-box;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 var(--fg-tabs-tab-padding) !important;
+  border: 0 !important;
+}
+
+#tabbrowser-tabs[orient="horizontal"] tab-split-view-wrapper .tabbrowser-tab > .tab-stack > .tab-background {
+  box-sizing: border-box;
+  width: 100% !important;
+  height: var(--tab-min-height) !important;
+  min-height: var(--tab-min-height) !important;
+  margin-block: var(--tab-block-margin) !important;
+  margin-inline: 0 !important;
+  border-radius: var(--fg-radius) !important;
+}
+
+#tabbrowser-tabs[orient="horizontal"] tab-split-view-wrapper .tabbrowser-tab:first-child > .tab-stack > .tab-background {
+  border-start-end-radius: 0 !important;
+  border-end-end-radius: 0 !important;
+  border-inline-end: 0 !important;
+}
+
+#tabbrowser-tabs[orient="horizontal"] tab-split-view-wrapper .tabbrowser-tab:last-child > .tab-stack > .tab-background {
+  border-start-start-radius: 0 !important;
+  border-end-start-radius: 0 !important;
+  border-inline-start: 0 !important;
+}
+
+#tabbrowser-tabs[orient="horizontal"] tab-split-view-wrapper .tabbrowser-tab:last-child {
+  border-inline-start: 0 !important;
+}
+
+/* Vertical drop indicator. Same pin look as the horizontal one, rotated for
+ * rows. The element has no height, so it never shifts the strip. */
+#tabbrowser-tabs[orient="vertical"] > .tab-drop-indicator {
+  position: relative;
+  width: calc(100% - 2 * var(--fg-tabs-margin)) !important;
+  height: 0 !important;
+  margin: 0 var(--fg-tabs-margin) !important;
+  background: none !important;
+}
+
+#tabbrowser-tabs[orient="vertical"] > .tab-drop-indicator::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -5px;
+  inset-inline-start: 0;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border: 2px solid var(--fg-tabbar);
+  border-radius: 50%;
+  background-color: AccentColor;
+  box-shadow: 0 1px 2px light-dark(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+}
+
+#tabbrowser-tabs[orient="vertical"] > .tab-drop-indicator::after {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline: 5px 0;
+  height: 2px;
+  border-radius: 1px;
+  background-color: AccentColor;
+  pointer-events: none;
+}
+
+/* Tab group editor. */
+/* Tab group editor. */
+.tab-group-editor-panel {
+  --panel-background-color: var(--fg-bg);
+  --panel-border-color: var(--fg-border);
+  --panel-text-color: var(--fg-text);
+  --panel-border-radius: var(--fg-radius);
+}
+
+.tab-group-editor-panel .tab-group-editor-name input {
+  appearance: none;
+  background-color: var(--fg-bg-3);
+  border: 1px solid var(--fg-border);
+  border-radius: var(--border-radius-medium);
+  color: var(--fg-text);
+  padding: 6px 10px;
+}
+
+.tab-group-editor-panel .tab-group-editor-name input:focus {
+  border-color: AccentColor;
+  outline: none;
+}
+
+.tab-group-editor-panel .tab-group-editor-swatch {
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background-clip: border-box;
+  border: 1px solid var(--fg-border);
+  border-radius: 6px;
+}
+
+.tab-group-editor-panel input:checked + .tab-group-editor-swatch {
+  border-color: AccentColor;
+  outline: 1px solid AccentColor;
+  outline-offset: 1px;
+}
+
+/* Drag targets use the accent color. */
+#tabbrowser-tabs[movingtab-group] .tabbrowser-tab[dragover-groupTarget] > .tab-stack > .tab-background,
+#tabbrowser-tabs[movingtab-group] .tabbrowser-tab > .tab-stack > .tab-background[dragover-groupTarget] {
+  background-color: var(--fg-hover) !important;
+  outline: 1px solid AccentColor !important;
+  outline-offset: -1px;
+}
+"""# Flat content area. Stock draws a hairline outline around the page and rounds
 # the corner next to the sidebar. Firegila keeps it square and borderless.
 CONTENT_AREA_CSS = """
 .browserContainer {
@@ -3214,7 +3946,7 @@ SB_CHROME_CSS = """
   --fg-pinned-columns: 4;
   /* The tabs column reveal is longer than the base motion, so the wide
    * width and pinned grid slide settle together. */
-  --fg-tabs-motion: 200ms;
+  --fg-tabs-motion: 160ms;
 }
 
 #sidebar-container {
@@ -3281,11 +4013,61 @@ SB_CHROME_CSS = """
  * chrome section. The panel border is the only section divider. */
 
 #vertical-tabs-container {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   background-color: var(--fg-tabbar);
+}
+
+/* Drop targets for a tab drag. They overlay the empty end of the column so
+ * the strip never grows or shifts while a drag is active. */
+#firegila-tab-dropzones {
+  display: none;
+  position: absolute;
+  inset-inline: var(--fg-tabs-margin);
+  inset-block-end: calc(2 * var(--fg-tabs-margin));
+  z-index: var(--browser-area-z-index-sidebar-expand-on-hover);
+  flex-direction: column;
+  gap: var(--fg-tabs-margin);
+  pointer-events: none;
+}
+
+:root:has(#tabbrowser-tabs[movingtab]) #firegila-tab-dropzones,
+:root[fg-tab-drag-hover] #firegila-tab-dropzones {
+  display: flex;
+}
+
+.firegila-tab-dropzone {
+  display: flex;
+  align-items: center;
+  gap: var(--fg-tabs-inset);
+  box-sizing: border-box;
+  min-height: var(--tab-min-height);
+  padding-inline: var(--fg-tabs-inset);
+  border: 1px solid var(--fg-border);
+  border-radius: var(--fg-radius);
+  background-color: var(--fg-bg);
+  color: var(--fg-text);
+  font-weight: var(--font-weight-semibold);
+  pointer-events: auto;
+  transition:
+    background-color var(--fg-motion-fast) var(--fg-ease),
+    border-color var(--fg-motion-fast) var(--fg-ease);
+}
+
+.firegila-tab-dropzone:hover,
+.firegila-tab-dropzone[dragover] {
+  border-color: AccentColor;
+  background-color: var(--fg-hover);
+}
+
+.firegila-tab-dropzone > image {
+  width: 16px;
+  height: 16px;
+  -moz-context-properties: fill;
+  fill: currentColor;
 }
 
 #vertical-tabs {
@@ -3360,6 +4142,14 @@ SB_CHROME_CSS = """
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+/* Without vertical tabs the stock strip lives in the toolbar. The held slot
+ * must not keep an empty column in layout. */
+@media not -moz-pref("sidebar.verticalTabs") {
+  #firegila-tabs-slot {
+    display: none !important;
+  }
 }
 
 /* Pinned tabs in vertical mode. Up to four square tiles per row. The grid
@@ -3587,13 +4377,16 @@ SB_CHROME_CSS = """
     pointer-events: auto;
   }
 
-  /* The audio dot rides the visible icon for the whole width range. */
-  :root[fg-autocollapse-tabs] #vertical-tabs-container > #firegila-workspaces .firegila-workspace-audio {
-    position: absolute;
-    inset-block-end: 1px;
-    inset-inline-start: 20px;
-    inset-inline-end: auto;
-    margin: 0;
+  /* A native tab drag keeps the column fully open even if a pointer event is
+   * lost. Stock sets movingtab for the whole drag, including group creation. */
+  :root[fg-autohide-tabs]:has(#tabbrowser-tabs:is([movingtab], [movingtab-group], [movingtab-addToGroup], [movingtab-ungroup])) #vertical-tabs-container,
+  :root[fg-autocollapse-tabs]:has(#tabbrowser-tabs:is([movingtab], [movingtab-group], [movingtab-addToGroup], [movingtab-ungroup])) #vertical-tabs-container {
+    transform: none !important;
+    width: var(--fg-tabs-width) !important;
+  }
+
+  :root[fg-autocollapse-tabs]:has(#tabbrowser-tabs:is([movingtab], [movingtab-group], [movingtab-addToGroup], [movingtab-ungroup])) #pinned-tabs-container[orient="vertical"]::part(items-wrapper) {
+    transform: none !important;
   }
 }
 
@@ -3620,12 +4413,70 @@ SB_CHROME_CSS = """
     margin-inline: 0 !important;
     opacity: 1;
   }
+
+  /* The stock audio button does not fit a 32px collapsed tab. Use the stock
+   * small audio overlay instead. */
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tab-audio-button {
+    display: none !important;
+  }
+
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tab-icon-overlay:is([soundplaying], [muted], [activemedia-blocked]):not([crashed]) {
+    display: revert !important;
+    --audio-overlay-extra-background: transparent;
+    background-color: var(--lwt-accent-color);
+    -moz-context-properties: fill;
+    fill: var(--fg-audio);
+    color-scheme: var(--tab-selected-color-scheme);
+    border-radius: var(--border-radius-circle);
+    background-image: image(var(--audio-overlay-extra-background)), image(var(--toolbox-background-color));
+  }
+
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tabbrowser-tab[selected] .tab-icon-overlay:is([soundplaying], [muted], [activemedia-blocked]):not([crashed]) {
+    background-image:
+      image(var(--audio-overlay-extra-background)), image(var(--tab-background-color-selected)),
+      image(var(--toolbox-background-color));
+  }
+
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tab-icon-overlay:is([soundplaying], [muted], [activemedia-blocked]):not([crashed]):-moz-window-inactive {
+    background-image:
+      image(var(--audio-overlay-extra-background)), image(var(--toolbox-background-color-inactive));
+  }
+
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tabbrowser-tab[selected] .tab-icon-overlay:is([soundplaying], [muted], [activemedia-blocked]):not([crashed]):-moz-window-inactive {
+    background-image:
+      image(var(--audio-overlay-extra-background)), image(var(--tab-background-color-selected)),
+      image(var(--toolbox-background-color-inactive));
+  }
+
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tab-icon-overlay:is([soundplaying], [muted], [activemedia-blocked]):not([crashed]):hover {
+    --audio-overlay-extra-background: var(--button-background-color-ghost-hover);
+  }
+
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tab-icon-overlay:is([soundplaying], [muted], [activemedia-blocked]):not([crashed]):hover:active {
+    --audio-overlay-extra-background: var(--button-background-color-ghost-active);
+  }
+
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tab-icon-overlay[soundplaying] {
+    list-style-image: url("chrome://browser/skin/tabbrowser/tab-audio-playing-small.svg");
+  }
+
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tab-icon-overlay[muted] {
+    list-style-image: url("chrome://browser/skin/tabbrowser/tab-audio-muted-small.svg");
+  }
+
+  :root[fg-autocollapse-tabs] #tabbrowser-tabs[orient="vertical"] .tab-icon-overlay[activemedia-blocked] {
+    list-style-image: url("chrome://browser/skin/tabbrowser/tab-audio-blocked-small.svg");
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root[fg-autohide-tabs] #vertical-tabs-container,
   :root[fg-autocollapse-tabs] #vertical-tabs-container,
-  :root[fg-autocollapse-tabs] #pinned-tabs-container[orient="vertical"]::part(items-wrapper) {
+  :root[fg-autocollapse-tabs] #pinned-tabs-container[orient="vertical"]::part(items-wrapper),
+  .tab-group-label,
+  .tab-group-label::after,
+  #tabbrowser-arrowscrollbox[orient="vertical"] tab-group > .tabbrowser-tab,
+  #tabbrowser-tabs[orient="horizontal"] tab-group > .tabbrowser-tab {
     transition: none;
   }
 }
@@ -3922,6 +4773,7 @@ SB_CHROME_CSS = """
   -moz-appearance: none;
   -moz-box-orient: horizontal;
   box-orient: horizontal;
+  position: relative;
   align-items: center;
   flex: 0 0 auto;
   box-sizing: border-box;
@@ -4000,17 +4852,19 @@ SB_CHROME_CSS = """
   pointer-events: none;
 }
 
-/* One audio dot style everywhere: 6px, accent color, round. On the button it
- * sits in the row before the chevron, centered with the label. */
+/* One audio dot style everywhere: 6px, neutral theme color, round. On the workspace
+ * button it is a corner badge, so the label and chevron never move. */
 
 #firegila-workspaces .firegila-workspace-audio {
   display: none;
-  flex: 0 0 auto;
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-end: 4px;
   width: 6px;
   height: 6px;
-  margin-inline-end: 6px;
+  margin: 0;
   border-radius: 50%;
-  background-color: AccentColor;
+  background-color: var(--fg-audio);
 }
 
 #firegila-workspaces[firegila-audio] .firegila-workspace-audio {
@@ -4124,10 +4978,10 @@ SB_CHROME_CSS = """
   height: 6px;
   margin-inline-start: 6px;
   border-radius: 50%;
-  background-color: AccentColor;
+  background-color: var(--fg-audio);
 }
 
-/* Sidebar audio dot. Same 6px accent circle as the workspace button and the
+/* Sidebar audio dot. Same 6px neutral circle as the workspace button and the
  * website list, so audio reads the same wherever it is shown. */
 
 #sidebar-button {
@@ -4142,13 +4996,8 @@ SB_CHROME_CSS = """
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background-color: AccentColor;
+  background-color: var(--fg-audio);
   pointer-events: none;
-}
-
-.fg-webpanel-list moz-button[attention] {
-  --button-attention-dot-color: AccentColor;
-  --button-badge-size: 6px;
 }
 
 /* The unified extensions panel is a plain fade. Stock slides it 70px with the
@@ -4184,6 +5033,16 @@ SB_MAIN_CSS = """
 
 #sidebar-tools-and-extensions-splitter {
   display: none !important;
+}
+
+/* Website audio dots use the shared neutral token. The stock green token is
+ * scoped to direct moz-button children, so override it there. */
+
+.fg-webpanel-list,
+.fg-webpanel-list > moz-button {
+  --button-attention-dot-color: var(--fg-audio) !important;
+  --button-badge-background-color: var(--fg-audio) !important;
+  --button-badge-size: 6px;
 }
 
 /* Website panels. A divider, one button per saved site, then the add button.
@@ -4231,13 +5090,66 @@ SB_BOOTSTRAP_JS = """
   const { SessionStore } = ChromeUtils.importESModule(
     "resource:///modules/sessionstore/SessionStore.sys.mjs"
   );
+  const { ShortcutUtils } = ChromeUtils.importESModule(
+    "resource://gre/modules/ShortcutUtils.sys.mjs"
+  );
+  const SHORTCUTS_PREF = "firegila.shortcuts";
+  const COMMAND_LABELS = {
+    cmd_newNavigator: "New window",
+    cmd_newNavigatorTabNoEvent: "New tab",
+    "Browser:OpenLocation": "Focus address bar",
+    "Tools:Search": "Focus search",
+    "Browser:OpenFile": "Open file",
+    "Browser:SavePage": "Save page",
+    cmd_print: "Print",
+    cmd_close: "Close tab",
+    cmd_closeWindow: "Close window",
+    cmd_toggleMute: "Mute tab",
+    "Tools:Downloads": "Downloads",
+    "Tools:Addons": "Add-ons",
+    "Browser:Back": "Back",
+    "Browser:Forward": "Forward",
+    "Browser:Reload": "Reload",
+    "Browser:ReloadSkipCache": "Reload skipping cache",
+    "Browser:ShowAllHistory": "History",
+    "Browser:AddBookmarkAs": "Bookmark this page",
+    "Browser:ShowAllBookmarks": "Bookmarks",
+    "Browser:DuplicateTab": "Duplicate tab",
+    "firegila-cmd-copy-page-link": "Copy page link",
+    "Browser:AddTabSplitView": "Add split view",
+    "Browser:SeparateTabSplitView": "Separate split view",
+    "Browser:Stop": "Stop loading",
+    "Browser:NextTab": "Next tab",
+    "Browser:PrevTab": "Previous tab",
+    "Browser:ShowAllTabs": "List all tabs",
+    cmd_find: "Find",
+    cmd_findAgain: "Find again",
+    cmd_findPrevious: "Find previous",
+    "View:FullScreen": "Full screen",
+    "View:PageSource": "Page source",
+    "View:PageInfo": "Page info",
+    "Tools:PrivateBrowsing": "Private window",
+    "Tools:Sanitize": "Clear recent history",
+  };
   const REVEAL_DELAY = 100;
+  const POINTER_RELEASE_DELAY = 80;
+  const COLLAPSE_SETTLE_DELAY = 40;
+  const TAB_DROP_TYPE = "application/x-moz-tabbrowser-tab";
   let revealTimer = 0;
   let openTimer = 0;
+  let collapseTimer = 0;
   let contextPins = 0;
+  let interactionPinned = false;
+  let pointerHeld = false;
+  let pointerSerial = 0;
+  let draggingTabs = false;
+  let dragHover = false;
+  let shortcutDefaults = null;
   let tabsRestored = false;
   let pinnedColumns = 0;
   const DEFAULT_BOOKMARKS_PREF = "firegila.migration.defaultBookmarks";
+  const STRICT_TRACKING_PREF = "firegila.migration.strictTracking";
+  const GPC_PREF = "firegila.migration.globalPrivacyControl";
   const STOCK_DEFAULT_BOOKMARKS = [
     ["Get Help", "https://support.mozilla.org/products/firefox"],
     [
@@ -4250,6 +5162,44 @@ SB_BOOTSTRAP_JS = """
 
   // Profiles made before the default bookmarks patch still carry the four
   // Mozilla defaults in a "Mozilla Firefox" folder under the bookmarks menu.
+  // Existing profiles start on Standard. Move that exact stock value to
+  // Strict once, and leave a custom or strict choice alone.
+  function migrateStrictTracking() {
+    if (Services.prefs.getBoolPref(STRICT_TRACKING_PREF, false)) {
+      return;
+    }
+    try {
+      if (
+        Services.prefs.getStringPref(
+          "browser.contentblocking.category",
+          "standard"
+        ) === "standard"
+      ) {
+        Services.prefs.setStringPref(
+          "browser.contentblocking.category",
+          "strict"
+        );
+      }
+    } catch (e) {}
+    Services.prefs.setBoolPref(STRICT_TRACKING_PREF, true);
+  }
+
+  // Tell sites not to sell or share data. Existing profiles opt in once on
+  // upgrade, and the default pref covers every new profile.
+  function migrateGlobalPrivacyControl() {
+    if (Services.prefs.getBoolPref(GPC_PREF, false)) {
+      return;
+    }
+    try {
+      Services.prefs.setBoolPref(
+        "privacy.globalprivacycontrol.functionality.enabled",
+        true
+      );
+      Services.prefs.setBoolPref("privacy.globalprivacycontrol.enabled", true);
+    } catch (e) {}
+    Services.prefs.setBoolPref(GPC_PREF, true);
+  }
+
   // Remove exactly those once, so upgrades match a fresh install. User
   // bookmarks are left alone, the folder is dropped only when it ends empty.
   async function migrateDefaultBookmarks() {
@@ -4399,6 +5349,7 @@ SB_BOOTSTRAP_JS = """
     }
     const vertical = Services.prefs.getBoolPref("sidebar.verticalTabs", false);
     tabs.toggleAttribute("expanded", vertical);
+    syncTabsMode();
     if (!vertical) {
       document.documentElement.removeAttribute("fg-tabs-revealed");
       document.documentElement.removeAttribute("fg-tabs-open");
@@ -4410,12 +5361,28 @@ SB_BOOTSTRAP_JS = """
     publishNavbarMetrics();
     persistPanelWidth();
     syncTabStripExpanded();
+    captureShortcutDefaults();
+    applyShortcuts();
+    installShortcutApi();
+    Services.prefs.addObserver(SHORTCUTS_PREF, applyShortcuts);
     migrateDefaultBookmarks();
+    // user.js lands after the first window in some profiles. Run the privacy
+    // defaults again once startup has settled, guarded so they run once.
+    window.setTimeout(() => {
+      migrateStrictTracking();
+      migrateGlobalPrivacyControl();
+    }, 500);
     watchSidebarHidden();
     watchRevealEnter();
     watchRevealLeave();
     watchEdgeSensor();
     watchTabsContextMenu();
+    watchTabInteraction();
+    patchDragStart();
+    watchExternalDrag();
+    createTabDropZones();
+    watchTabGroupPanels();
+    watchFiregilaCommands();
     watchPinnedTabs();
     watchPinnedColumn();
     Services.prefs.addObserver("sidebar.verticalTabs", syncTabStripExpanded);
@@ -4426,6 +5393,7 @@ SB_BOOTSTRAP_JS = """
   // before the sidebar renders, so the first frame is already collapsed.
   function syncAutoHide() {
     const on =
+      Services.prefs.getBoolPref("sidebar.verticalTabs", false) &&
       Services.prefs.getBoolPref(AUTO_HIDE_PREF, false) &&
       !Services.prefs.getBoolPref(AUTO_COLLAPSE_PREF, false);
     document.documentElement.toggleAttribute("fg-autohide-tabs", on);
@@ -4439,7 +5407,9 @@ SB_BOOTSTRAP_JS = """
   // reveal attribute drives the expansion, so both tabs modes share the
   // pointer handling and only one can be active.
   function syncAutoCollapse() {
-    const on = Services.prefs.getBoolPref(AUTO_COLLAPSE_PREF, false);
+    const on =
+      Services.prefs.getBoolPref("sidebar.verticalTabs", false) &&
+      Services.prefs.getBoolPref(AUTO_COLLAPSE_PREF, false);
     document.documentElement.toggleAttribute("fg-autocollapse-tabs", on);
     if (!on) {
       document.documentElement.removeAttribute("fg-tabs-revealed");
@@ -4488,11 +5458,15 @@ SB_BOOTSTRAP_JS = """
   function setRevealed(on) {
     clearTimeout(revealTimer);
     clearTimeout(openTimer);
+    clearTimeout(collapseTimer);
     const root = document.documentElement;
     if (
       !on &&
       (root.hasAttribute("fg-tabs-reveal-pinned") ||
-        root.hasAttribute("fg-tabs-context-pinned"))
+        root.hasAttribute("fg-tabs-context-pinned") ||
+        root.hasAttribute("fg-tabs-interaction-pinned") ||
+        tabStripIsMoving() ||
+        dragHover)
     ) {
       return;
     }
@@ -4514,9 +5488,26 @@ SB_BOOTSTRAP_JS = """
     }, delay);
   }
 
+  // Let the pointer settle after a popup closes or a tab is dropped. Hover
+  // state arrives a frame late, so checking it immediately made the column
+  // close even when the pointer was still inside it.
+  function requestCollapse() {
+    clearTimeout(collapseTimer);
+    collapseTimer = window.setTimeout(() => {
+      const tabs = document.getElementById("vertical-tabs-container");
+      if (tabs && tabs.matches(":hover")) {
+        return;
+      }
+      setRevealed(false);
+    }, COLLAPSE_SETTLE_DELAY);
+  }
+
   // A context menu keeps the column open even when the pointer leaves it to
   // use the menu.
   function pinContextReveal() {
+    if (!Services.prefs.getBoolPref("sidebar.verticalTabs", false)) {
+      return;
+    }
     contextPins++;
     const root = document.documentElement;
     root.setAttribute("fg-tabs-context-pinned", "");
@@ -4531,10 +5522,667 @@ SB_BOOTSTRAP_JS = """
     }
     const root = document.documentElement;
     root.removeAttribute("fg-tabs-context-pinned");
+    requestCollapse();
+  }
+
+  // A press in the tabs column, or a tab drag, pins the reveal for the whole
+  // gesture. Tab drags leave the column, so mouseleave alone would collapse
+  // it mid gesture.
+  function pinInteraction() {
+    if (!Services.prefs.getBoolPref("sidebar.verticalTabs", false)) {
+      return;
+    }
+    const root = document.documentElement;
+    root.setAttribute("fg-tabs-interaction-pinned", "");
+    root.setAttribute("fg-tabs-revealed", "");
+    root.setAttribute("fg-tabs-open", "");
+  }
+
+  function unpinInteraction() {
+    const root = document.documentElement;
+    root.removeAttribute("fg-tabs-interaction-pinned");
+    requestCollapse();
+  }
+
+  function tabStripIsMoving() {
+    const strip = document.getElementById("tabbrowser-tabs");
+    return !!strip && strip.hasAttribute("movingtab");
+  }
+
+  function syncInteractionPin() {
+    const vertical = Services.prefs.getBoolPref(
+      "sidebar.verticalTabs",
+      false
+    );
+    const active =
+      vertical &&
+      (pointerHeld || draggingTabs || dragHover || tabStripIsMoving());
+    if (active === interactionPinned) {
+      return;
+    }
+    interactionPinned = active;
+    if (active) {
+      pinInteraction();
+    } else {
+      unpinInteraction();
+    }
+  }
+
+  function holdPointer() {
+    pointerSerial++;
+    pointerHeld = true;
+    syncInteractionPin();
+  }
+
+  // Hold the pin briefly after a release. A native tab drag sets movingtab
+  // after the press, and a slow drag threshold must not drop the pin before
+  // the strip reports the drag.
+  function releasePointer() {
+    const serial = ++pointerSerial;
+    window.setTimeout(() => {
+      if (serial !== pointerSerial) {
+        return;
+      }
+      if (draggingTabs || dragHover || tabStripIsMoving()) {
+        return;
+      }
+      pointerHeld = false;
+      syncInteractionPin();
+    }, POINTER_RELEASE_DELAY);
+  }
+
+  // Cross-window tab drags carry the tab flavor into this window. Reveal the
+  // column on entry so a collapsed strip can accept the drop, and keep it
+  // open until the drag leaves or the drop settles.
+  function isTabDrag(event) {
+    return !!event.dataTransfer?.types?.includes(TAB_DROP_TYPE);
+  }
+
+  function splitTargets(element) {
+    const gb = window.gBrowser;
+    if (!gb || !element || gb.isTabGroupLabel(element)) {
+      return [];
+    }
+    let targets = (
+      element.multiselected
+        ? gb.selectedElements
+        : [element.splitview || element]
+    ).filter(target => target && !target.closing);
+    if (!targets.length) {
+      return [];
+    }
+    if (targets.length === 1) {
+      const index = gb.tabs.indexOf(targets[0]);
+      const candidates = gb.visibleTabs.filter(
+        tab =>
+          tab !== targets[0] &&
+          !tab.pinned &&
+          !tab.closing &&
+          !tab.hidden &&
+          !gb.isTabGroupLabel(tab)
+      );
+      candidates.sort(
+        (a, b) =>
+          Math.abs(gb.tabs.indexOf(a) - index) -
+          Math.abs(gb.tabs.indexOf(b) - index)
+      );
+      const partner = candidates[0];
+      if (!partner) {
+        return [];
+      }
+      targets.push(partner);
+    }
+    return targets;
+  }
+
+  // A custom drop target runs before the stock drop cleanup. Remove every
+  // inline drag style first so split view and new window never inherit a
+  // transform or a frozen width from the drag.
+  function clearDragState() {
+    const gb = window.gBrowser;
+    const strip = gb?.tabContainer;
+    if (!strip) {
+      return;
+    }
+    const dnd = strip.tabDragAndDrop;
+    try {
+      dnd?.finishAnimateTabMove();
+    } catch (e) {}
+    try {
+      dnd?._resetTabsAfterDrop(document);
+    } catch (e) {}
+    for (const attr of [
+      "movingtab",
+      "movingtab-group",
+      "movingtab-ungroup",
+      "movingtab-addToGroup",
+    ]) {
+      strip.removeAttribute(attr);
+    }
+    const indicator = strip.querySelector(".tab-drop-indicator");
+    if (indicator) {
+      indicator.hidden = true;
+    }
+    for (const el of strip.querySelectorAll(
+      ".tabbrowser-tab, tab-split-view-wrapper, .tab-group-label-container, .tab-group-label"
+    )) {
+      el.style.transform = "";
+      el.style.width = "";
+      el.style.height = "";
+      el.style.maxWidth = "";
+      el.style.left = "";
+      el.style.top = "";
+      el.style.pointerEvents = "";
+      el.removeAttribute("dragtarget");
+      el.removeAttribute("small-stack");
+      el.removeAttribute("big-stack");
+      delete el.currentIndex;
+    }
+  }
+
+  function createTabDropZones() {
+    const container = document.getElementById("vertical-tabs-container");
+    if (!container || document.getElementById("firegila-tab-dropzones")) {
+      return;
+    }
+    const zones = document.createXULElement("box");
+    zones.id = "firegila-tab-dropzones";
+    const items = [
+      [
+        "split",
+        "firegila-tab-drop-split",
+        "chrome://browser/skin/split-view-left-16.svg",
+      ],
+      [
+        "window",
+        "firegila-tab-drop-window",
+        "chrome://global/skin/icons/open-in-new.svg",
+      ],
+    ];
+    for (const [action, l10nId, icon] of items) {
+      const zone = document.createXULElement("box");
+      zone.className = "firegila-tab-dropzone";
+      zone.setAttribute("data-action", action);
+      const image = document.createXULElement("image");
+      image.setAttribute("src", icon);
+      const label = document.createXULElement("label");
+      label.setAttribute("data-l10n-id", l10nId);
+      zone.append(image, label);
+      zone.addEventListener("dragover", event => {
+        if (!isTabDrag(event)) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        zone.setAttribute("dragover", "");
+      });
+      zone.addEventListener("dragleave", () => {
+        zone.removeAttribute("dragover");
+      });
+      zone.addEventListener("drop", event => {
+        if (!isTabDrag(event)) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        zone.removeAttribute("dragover");
+        let element;
+        try {
+          element = event.dataTransfer.mozGetDataAt(TAB_DROP_TYPE, 0);
+        } catch (e) {
+          element = null;
+        }
+        const gb = window.gBrowser;
+        if (!element || !gb) {
+          return;
+        }
+        clearDragState();
+        if (action === "split") {
+          const targets = splitTargets(element);
+          if (targets.length < 2) {
+            return;
+          }
+          const split = gb.addTabSplitView(targets);
+          if (split?.tabs?.length) {
+            gb.selectedTab = split.tabs[0];
+          }
+          return;
+        }
+        gb.replaceTabsWithWindow(element);
+      });
+      zones.appendChild(zone);
+    }
+    container.appendChild(zones);
+    document.l10n?.translateElements?.([
+      ...zones.querySelectorAll("[data-l10n-id]"),
+    ]);
+  }
+
+  // Keep the grabbed vertical tab centered under the pointer from the first
+  // frame. Stock records the pointer offset, which leaves the row above the
+  // cursor when the grab starts near the bottom of the tab.
+  function patchDragStart() {
+    const proto = window.TabDragAndDrop?.prototype;
+    if (!proto || proto._firegilaCentered) {
+      return;
+    }
+    proto._firegilaCentered = true;
+    const original = proto.handle_dragstart;
+    proto.handle_dragstart = function (event) {
+      const result = original.call(this, event);
+      if (!Services.prefs.getBoolPref("sidebar.verticalTabs", false)) {
+        return result;
+      }
+      const tab = event.target?.closest?.("tab");
+      const data = tab?._dragData;
+      if (!data) {
+        return result;
+      }
+      const rect = tab.getBoundingClientRect();
+      if (rect.height) {
+        const top =
+          typeof tab.screenY === "number"
+            ? tab.screenY
+            : window.mozInnerScreenY + rect.top;
+        data.screenY = top + rect.height / 2;
+      }
+      return result;
+    };
+  }
+
+  function watchExternalDrag() {
+    window.addEventListener(
+      "dragenter",
+      event => {
+        if (
+          !isTabDrag(event) ||
+          !Services.prefs.getBoolPref("sidebar.verticalTabs", false)
+        ) {
+          return;
+        }
+        dragHover = true;
+        document.documentElement.setAttribute("fg-tab-drag-hover", "");
+        syncInteractionPin();
+        setRevealed(true);
+      },
+      true
+    );
+
+    window.addEventListener(
+      "dragover",
+      event => {
+        if (
+          !isTabDrag(event) ||
+          !Services.prefs.getBoolPref("sidebar.verticalTabs", false)
+        ) {
+          return;
+        }
+        if (!document.documentElement.hasAttribute("fg-tabs-revealed")) {
+          setRevealed(true);
+        }
+      },
+      true
+    );
+
+    window.addEventListener(
+      "dragleave",
+      event => {
+        if (!isTabDrag(event) || event.relatedTarget) {
+          return;
+        }
+        dragHover = false;
+        document.documentElement.removeAttribute("fg-tab-drag-hover");
+        syncInteractionPin();
+      },
+      true
+    );
+
+    window.addEventListener(
+      "drop",
+      event => {
+        if (!isTabDrag(event)) {
+          return;
+        }
+        dragHover = false;
+        document.documentElement.removeAttribute("fg-tab-drag-hover");
+        releasePointer();
+      },
+      true
+    );
+
+    window.addEventListener(
+      "dragend",
+      () => {
+        dragHover = false;
+        document.documentElement.removeAttribute("fg-tab-drag-hover");
+        syncInteractionPin();
+      },
+      true
+    );
+
+  }
+
+  function watchTabInteraction() {
     const tabs = document.getElementById("vertical-tabs-container");
-    if (!tabs || !tabs.matches(":hover")) {
-      root.removeAttribute("fg-tabs-revealed");
-      root.removeAttribute("fg-tabs-open");
+    const strip = document.getElementById("tabbrowser-tabs");
+    if (!tabs) {
+      return;
+    }
+    const inside = event => {
+      const node = event.target;
+      return node && (node === tabs || tabs.contains(node));
+    };
+    window.addEventListener(
+      "pointerdown",
+      event => {
+        if (inside(event)) {
+          holdPointer();
+        }
+      },
+      true
+    );
+    window.addEventListener(
+      "pointerup",
+      () => {
+        releasePointer();
+      },
+      true
+    );
+    window.addEventListener(
+      "pointercancel",
+      () => {
+        releasePointer();
+      },
+      true
+    );
+    window.addEventListener(
+      "mouseup",
+      () => {
+        releasePointer();
+      },
+      true
+    );
+    const startDrag = event => {
+      if (!inside(event)) {
+        return;
+      }
+      draggingTabs = true;
+      holdPointer();
+      syncInteractionPin();
+    };
+    window.addEventListener("dragstart", startDrag, true);
+    window.addEventListener("draggesture", startDrag, true);
+    window.addEventListener(
+      "dragend",
+      () => {
+        draggingTabs = false;
+        pointerHeld = false;
+        pointerSerial++;
+        syncInteractionPin();
+      },
+      true
+    );
+    window.addEventListener(
+      "drop",
+      event => {
+        if (!inside(event)) {
+          return;
+        }
+        draggingTabs = false;
+        releasePointer();
+      },
+      true
+    );
+    window.addEventListener(
+      "blur",
+      () => {
+        releasePointer();
+      },
+      true
+    );
+    // Stock marks the strip for the whole tab drag, including the steps that
+    // create or move a group. Watching the attribute covers drag paths that
+    // do not deliver pointer or drag events to this window.
+    if (strip) {
+      new MutationObserver(() => syncInteractionPin()).observe(strip, {
+        attributes: true,
+        attributeFilter: [
+          "movingtab",
+          "movingtab-group",
+          "movingtab-addToGroup",
+          "movingtab-ungroup",
+        ],
+      });
+    }
+  }
+
+  function shortcutBinding(key) {
+    return {
+      key: key.getAttribute("key") || "",
+      keycode: key.getAttribute("keycode") || "",
+      modifiers: key.getAttribute("modifiers") || "",
+    };
+  }
+
+  function setShortcutBinding(key, binding) {
+    key.removeAttribute("key");
+    key.removeAttribute("keycode");
+    if (binding.keycode) {
+      key.setAttribute("keycode", binding.keycode);
+    } else if (binding.key) {
+      key.setAttribute("key", binding.key);
+    }
+    if (binding.modifiers) {
+      key.setAttribute("modifiers", binding.modifiers);
+    } else {
+      key.removeAttribute("modifiers");
+    }
+  }
+
+  function captureShortcutDefaults() {
+    const keyset = document.getElementById("mainKeyset");
+    if (!keyset) {
+      return;
+    }
+    shortcutDefaults = new Map();
+    let index = 0;
+    for (const key of keyset.querySelectorAll("key")) {
+      if (!key.id) {
+        key.id = `firegila-key-${index}`;
+      }
+      index++;
+      shortcutDefaults.set(key.id, shortcutBinding(key));
+    }
+  }
+
+  function readShortcuts() {
+    try {
+      return (
+        JSON.parse(Services.prefs.getStringPref(SHORTCUTS_PREF, "{}")) || {}
+      );
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function writeShortcuts(map) {
+    Services.prefs.setStringPref(SHORTCUTS_PREF, JSON.stringify(map));
+  }
+
+  async function shortcutLabel(key) {
+    const l10nId = key.getAttribute("data-l10n-id");
+    if (l10nId && !key.getAttribute("command")) {
+      const value = await document.l10n
+        .formatValue(l10nId)
+        .catch(() => "");
+      if (value) {
+        return value;
+      }
+    }
+    const command = key.getAttribute("command") || "";
+    if (command) {
+      if (COMMAND_LABELS[command]) {
+        return COMMAND_LABELS[command];
+      }
+      const owner = document.querySelector(
+        `[command="${CSS.escape(command)}"][data-l10n-id]`
+      );
+      const ownerId = owner?.getAttribute("data-l10n-id");
+      if (ownerId) {
+        const value = await document.l10n
+          .formatValue(ownerId)
+          .catch(() => "");
+        if (value) {
+          return value;
+        }
+      }
+      return command
+        .replace(/^(cmd_|Browser:|View:|Tools:)/, "")
+        .replace(/([a-z])([A-Z])/g, "$1 $2");
+    }
+    return key.id.replace(/^key[_-]?/, "").replace(/([a-z])([A-Z])/g, "$1 $2");
+  }
+
+  async function shortcutEntries() {
+    const keyset = document.getElementById("mainKeyset");
+    if (!keyset) {
+      return [];
+    }
+    const list = [];
+    for (const key of keyset.querySelectorAll("key")) {
+      let shortcut = "";
+      try {
+        shortcut = ShortcutUtils.prettifyShortcut(key);
+      } catch (e) {}
+      list.push({
+        id: key.id,
+        label: await shortcutLabel(key),
+        shortcut,
+        ...shortcutBinding(key),
+      });
+    }
+    return list;
+  }
+
+  function applyShortcuts() {
+    if (!shortcutDefaults) {
+      captureShortcutDefaults();
+    }
+    const map = readShortcuts();
+    for (const [id, def] of shortcutDefaults) {
+      const key = document.getElementById(id);
+      if (!key) {
+        continue;
+      }
+      setShortcutBinding(key, def);
+      if (map[id]) {
+        setShortcutBinding(key, map[id]);
+      }
+    }
+  }
+
+  function duplicateShortcut(id, binding) {
+    const keyset = document.getElementById("mainKeyset");
+    const target = document.getElementById(id);
+    if (!keyset || !target) {
+      return "";
+    }
+    const combo = `${(binding.modifiers || "").toLowerCase()}|${(
+      binding.keycode ||
+      binding.key ||
+      ""
+    ).toLowerCase()}`;
+    for (const key of keyset.querySelectorAll("key")) {
+      if (key === target) {
+        continue;
+      }
+      const current = shortcutBinding(key);
+      if (!current.key && !current.keycode) {
+        continue;
+      }
+      const other = `${(current.modifiers || "").toLowerCase()}|${(
+        current.keycode ||
+        current.key ||
+        ""
+      ).toLowerCase()}`;
+      if (other === combo) {
+        return key.id;
+      }
+    }
+    return "";
+  }
+
+  function installShortcutApi() {
+    window.FiregilaShortcuts = {
+      async entries() {
+        return shortcutEntries();
+      },
+      set(id, binding) {
+        const map = readShortcuts();
+        map[id] = binding;
+        writeShortcuts(map);
+        applyShortcuts();
+        const key = document.getElementById(id);
+        return {
+          shortcut: key ? ShortcutUtils.prettifyShortcut(key) : "",
+          duplicate: duplicateShortcut(id, binding),
+        };
+      },
+      reset(id) {
+        const map = readShortcuts();
+        delete map[id];
+        writeShortcuts(map);
+        applyShortcuts();
+        const key = document.getElementById(id);
+        return {
+          shortcut: key ? ShortcutUtils.prettifyShortcut(key) : "",
+        };
+      },
+      resetAll() {
+        writeShortcuts({});
+        applyShortcuts();
+      },
+    };
+  }
+
+  function copyPageLink() {
+    const uri = window.gBrowser?.currentURI?.spec;
+    if (!uri) {
+      return;
+    }
+    try {
+      Cc["@mozilla.org/widget/clipboardhelper;1"]
+        .getService(Ci.nsIClipboardHelper)
+        .copyString(uri);
+    } catch (e) {}
+  }
+
+  function watchFiregilaCommands() {
+    document
+      .getElementById("firegila-cmd-copy-page-link")
+      ?.addEventListener("command", copyPageLink);
+  }
+
+  // The tab group editor and preview panels can stay open after the pointer
+  // leaves the column. Keep the column open while either panel is visible.
+  function watchTabGroupPanels() {
+    const pinIfVertical = () => {
+      if (Services.prefs.getBoolPref("sidebar.verticalTabs", false)) {
+        pinContextReveal();
+      }
+    };
+    const preview = document.getElementById("tabgroup-preview-panel");
+    if (preview) {
+      preview.addEventListener("popupshowing", pinIfVertical);
+      preview.addEventListener("popuphidden", unpinContextReveal);
+    }
+    const editor = document.getElementById("tab-group-editor");
+    const panel =
+      editor?.querySelector("panel") ||
+      editor?.shadowRoot?.querySelector("panel");
+    if (panel) {
+      panel.addEventListener("popupshowing", pinIfVertical);
+      panel.addEventListener("popuphidden", unpinContextReveal);
     }
   }
 
@@ -4554,7 +6202,9 @@ SB_BOOTSTRAP_JS = """
     const root = document.documentElement;
     if (
       !root.hasAttribute("fg-autohide-tabs") ||
-      !root.hasAttribute("fg-tabs-revealed")
+      !root.hasAttribute("fg-tabs-revealed") ||
+      root.hasAttribute("fg-tabs-interaction-pinned") ||
+      tabStripIsMoving()
     ) {
       return;
     }
@@ -4646,7 +6296,7 @@ SB_BOOTSTRAP_JS = """
     if (tabs) {
       tabs.addEventListener("mouseleave", () => {
         clearTimeout(revealTimer);
-        setRevealed(false);
+        requestCollapse();
       });
     }
   }
@@ -5868,6 +7518,7 @@ SB_WORKSPACES_JS = """
   const MAX_WORKSPACES = 12;
   const MAX_NAME = 24;
   const SCROLL_DELAY = 160;
+  const COLLAPSE_SETTLE_DELAY = 40;
   const MENU_MIN_WIDTH = 200;
   const MENU_MAX_WIDTH = 260;
 
@@ -5892,6 +7543,9 @@ SB_WORKSPACES_JS = """
   // pointer leaves the column to use the menu, so without this the column
   // collapses and the next popup anchors to a moved button.
   function pinReveal() {
+    if (!Services.prefs.getBoolPref("sidebar.verticalTabs", false)) {
+      return;
+    }
     revealPins++;
     const root = document.documentElement;
     root.setAttribute("fg-tabs-reveal-pinned", "");
@@ -5911,11 +7565,24 @@ SB_WORKSPACES_JS = """
     }
     const root = document.documentElement;
     root.removeAttribute("fg-tabs-reveal-pinned");
-    const tabs = document.getElementById("vertical-tabs-container");
-    if (!tabs || !tabs.matches(":hover")) {
+    window.setTimeout(() => {
+      const tabs = document.getElementById("vertical-tabs-container");
+      if (tabs && tabs.matches(":hover")) {
+        return;
+      }
+      if (
+        root.hasAttribute("fg-tabs-context-pinned") ||
+        root.hasAttribute("fg-tabs-interaction-pinned")
+      ) {
+        return;
+      }
+      const strip = document.getElementById("tabbrowser-tabs");
+      if (strip && strip.hasAttribute("movingtab")) {
+        return;
+      }
       root.removeAttribute("fg-tabs-revealed");
       root.removeAttribute("fg-tabs-open");
-    }
+    }, COLLAPSE_SETTLE_DELAY);
   }
 
   // Use the resting width, not the animating one. In vertical tabs the
@@ -6371,6 +8038,14 @@ SB_WORKSPACES_JS = """
     const saved = SessionStore.getCustomTabValue(tab, TAB_VALUE);
     if (workspace(saved)) {
       tab.setAttribute(TAB_VALUE, saved);
+      // A tab adopted from another window can belong to a workspace that is
+      // not active here. Follow it when it arrives selected, so a cross-window
+      // drag never lands in a hidden workspace.
+      if (tab.selected && saved !== activeId) {
+        activeId = saved;
+        hideOthers(saved);
+        syncUI();
+      }
     } else if (activeId) {
       assignTab(tab, activeId);
     }
@@ -6590,7 +8265,18 @@ SB_WORKSPACES_JS = """
       hideOthers(activeId);
     }
     syncUI();
-    SessionStore.promiseAllWindowsRestored.then(restoreDone, restoreDone);
+    SessionStore.promiseAllWindowsRestored.then(
+      () => {
+        migrateStrictTracking();
+        migrateGlobalPrivacyControl();
+        restoreDone();
+      },
+      () => {
+        migrateStrictTracking();
+        migrateGlobalPrivacyControl();
+        restoreDone();
+      }
+    );
   }
 
   function restoreDone() {
@@ -6737,6 +8423,284 @@ DEFAULT_BOOKMARKS = """<!-- This Source Code Form is subject to the terms of the
 </html>
 """
 
+FIREGILA_SHORTCUTS_MJS = r"""/* Firegila shortcut editor. Lists every key in the main keyset and stores
+ * overrides in firegila.shortcuts. */
+import { SettingGroupManager } from "chrome://browser/content/preferences/config/SettingGroupManager.mjs";
+
+const NAMED_KEYS = {
+  ArrowLeft: "VK_LEFT",
+  ArrowRight: "VK_RIGHT",
+  ArrowUp: "VK_UP",
+  ArrowDown: "VK_DOWN",
+  Home: "VK_HOME",
+  End: "VK_END",
+  PageUp: "VK_PAGE_UP",
+  PageDown: "VK_PAGE_DOWN",
+  Insert: "VK_INSERT",
+  Delete: "VK_DELETE",
+  Backspace: "VK_BACK",
+  Enter: "VK_RETURN",
+  Escape: "VK_ESCAPE",
+  Tab: "VK_TAB",
+};
+
+const IGNORED_KEYS = new Set([
+  "Control",
+  "Shift",
+  "Alt",
+  "Meta",
+  "OS",
+  "AltGraph",
+  "CapsLock",
+]);
+
+function browserWindow() {
+  return Services.wm.getMostRecentWindow("navigator:browser");
+}
+
+function captureBinding(event) {
+  if (IGNORED_KEYS.has(event.key)) {
+    return null;
+  }
+  const modifiers = [];
+  if (event.ctrlKey) {
+    modifiers.push("accel");
+  }
+  if (event.metaKey) {
+    modifiers.push("meta");
+  }
+  if (event.shiftKey) {
+    modifiers.push("shift");
+  }
+  if (event.altKey) {
+    modifiers.push("alt");
+  }
+  const mods = modifiers.join(",");
+  if (event.key === " ") {
+    return { keycode: "VK_SPACE", modifiers: mods };
+  }
+  if (event.key.length === 1) {
+    return { key: event.key.toUpperCase(), modifiers: mods };
+  }
+  if (/^F\d{1,2}$/.test(event.key)) {
+    return { keycode: "VK_" + event.key.toUpperCase(), modifiers: mods };
+  }
+  if (NAMED_KEYS[event.key]) {
+    return { keycode: NAMED_KEYS[event.key], modifiers: mods };
+  }
+  return { key: event.key, modifiers: mods };
+}
+
+class FiregilaShortcutsList extends HTMLElement {
+  connectedCallback() {
+    if (this._started) {
+      return;
+    }
+    this._started = true;
+    this.classList.add("firegila-shortcuts");
+    this.build();
+  }
+
+  async message(id) {
+    try {
+      return await document.l10n.formatValue(id);
+    } catch (e) {
+      return "";
+    }
+  }
+
+  async build() {
+    const win = browserWindow();
+    this.replaceChildren();
+    const status = document.createElement("p");
+    status.className = "firegila-shortcuts-status";
+    this.append(status);
+
+    if (!win?.FiregilaShortcuts) {
+      status.textContent = await this.message("firegila-shortcuts-no-window");
+      return;
+    }
+
+    status.textContent = await this.message("firegila-shortcuts-loading");
+    const entries = await win.FiregilaShortcuts.entries();
+    status.remove();
+
+    const description = document.createElement("p");
+    description.className = "firegila-shortcuts-description";
+    description.textContent = await this.message("firegila-shortcuts-description");
+    this.append(description);
+
+    const resetAll = document.createElement("button");
+    resetAll.className = "firegila-shortcuts-reset-all";
+    resetAll.textContent = await this.message("firegila-shortcuts-reset-all");
+    resetAll.addEventListener("click", () => {
+      win.FiregilaShortcuts.resetAll();
+      this.build();
+    });
+    this.append(resetAll);
+
+    const list = document.createElement("div");
+    list.className = "firegila-shortcuts-list";
+    const empty = await this.message("firegila-shortcuts-empty");
+    const resetLabel = await this.message("firegila-shortcuts-reset");
+    const duplicateText = await this.message("firegila-shortcuts-duplicate");
+
+    for (const entry of entries) {
+      const row = document.createElement("div");
+      row.className = "firegila-shortcut-row";
+
+      const label = document.createElement("span");
+      label.className = "firegila-shortcut-label";
+      label.textContent = entry.label;
+
+      const input = document.createElement("input");
+      input.className = "firegila-shortcut-input";
+      input.type = "text";
+      input.readOnly = true;
+      input.autocomplete = "off";
+      input.spellcheck = false;
+      input.value = entry.shortcut || empty;
+      input.addEventListener("focus", () => input.select());
+      input.addEventListener("keydown", event => {
+        if (
+          event.key === "Tab" &&
+          !event.ctrlKey &&
+          !event.altKey &&
+          !event.metaKey
+        ) {
+          return;
+        }
+        const binding = captureBinding(event);
+        if (!binding) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        const result = win.FiregilaShortcuts.set(entry.id, binding);
+        input.value = result.shortcut || empty;
+        input.classList.toggle("duplicate", !!result.duplicate);
+        input.title = result.duplicate ? duplicateText : "";
+      });
+
+      const reset = document.createElement("button");
+      reset.className = "firegila-shortcut-reset";
+      reset.textContent = resetLabel;
+      reset.addEventListener("click", () => {
+        const result = win.FiregilaShortcuts.reset(entry.id);
+        input.value = result.shortcut || empty;
+        input.classList.remove("duplicate");
+        input.title = "";
+      });
+
+      row.append(label, input, reset);
+      list.append(row);
+    }
+
+    this.append(list);
+  }
+}
+
+customElements.define("firegila-shortcuts-list", FiregilaShortcutsList);
+
+SettingGroupManager.registerGroups({
+  firegilaShortcuts: {
+    l10nId: "firegila-shortcuts-heading",
+    headingLevel: 2,
+    items: [],
+  },
+});
+
+function mountShortcutList() {
+  const pane = [...document.querySelectorAll("setting-pane")].find(
+    p => p.name === "paneShortcuts"
+  );
+  if (!pane) {
+    return false;
+  }
+  if (!pane.querySelector("firegila-shortcuts-list")) {
+    const list = document.createElement("firegila-shortcuts-list");
+    pane.append(list);
+  }
+  return true;
+}
+
+if (!mountShortcutList()) {
+  const observer = new MutationObserver(() => {
+    if (mountShortcutList()) {
+      observer.disconnect();
+    }
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+}
+"""
+
+FIREGILA_SHORTCUTS_CSS = """
+.firegila-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-block: 4px 8px;
+}
+
+.firegila-shortcuts-description,
+.firegila-shortcuts-status {
+  margin: 0;
+  color: var(--text-color-deemphasized);
+}
+
+.firegila-shortcuts-reset-all {
+  align-self: start;
+  font: inherit;
+}
+
+.firegila-shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border-color);
+}
+
+.firegila-shortcut-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12em, 18em) auto;
+  align-items: center;
+  gap: 8px;
+  padding-block: 6px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.firegila-shortcut-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.firegila-shortcut-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--background-color-box);
+  color: var(--text-color);
+  font: inherit;
+  text-align: center;
+}
+
+.firegila-shortcut-input:focus {
+  outline: 2px solid var(--focus-outline-color);
+  outline-offset: 1px;
+}
+
+.firegila-shortcut-input.duplicate {
+  border-color: var(--text-color-error);
+}
+
+.firegila-shortcut-reset {
+  font: inherit;
+}
+"""
+
 patch_jar(BUILD / "browser/omni.ja", BROWSER_EDITS, REMOVE_DIRS_BROWSER, ART_SVG_BROWSER, sweep=True,
           appends=[(f, NEWTAB_CSS) for f in NEWTAB_CSS_FILES] + [
                    # The stock browser defaults file loads after the app level
@@ -6745,12 +8709,18 @@ patch_jar(BUILD / "browser/omni.ja", BROWSER_EDITS, REMOVE_DIRS_BROWSER, ART_SVG
                    # final. customize.sh writes the file before this runs.
                    ("defaults/preferences/firefox.js", "\n" + FIREGILA_PREFS),
                    ("chrome/browser/skin/classic/browser/tabbrowser/tab.tokens.css", TAB_CSS),
+                   ("chrome/browser/skin/classic/browser/tabbrowser/tabs.css", TAB_GROUP_CSS),
                    ("chrome/browser/content/browser/sidebar/sidebar.css", SIDEBAR_PAGE_CSS),
                    ("chrome/browser/skin/classic/browser/tabbrowser/content-area.css", CONTENT_AREA_CSS),
                    ("chrome/browser/skin/classic/browser/sidebar.css", SB_CHROME_CSS),
+                   ("localization/en-US/browser/browserSets.ftl", "\nfiregila-copy-page-link = Copy Page Link\n"),
+                   ("localization/en-US/browser/browserContext.ftl", "\nfiregila-context-copy-page-link =\n  .label = Copy Page Link\n  .accesskey = L\n"),
+                   ("localization/en-US/browser/preferences/preferences.ftl", "\nfiregila-shortcuts-section = Shortcuts\nfiregila-shortcuts-heading = Keyboard shortcuts\nfiregila-shortcuts-description = Every shortcut in the browser. Select a field and press a new combination.\nfiregila-shortcuts-change = Change\nfiregila-shortcuts-reset = Reset\nfiregila-shortcuts-reset-all = Reset all shortcuts\nfiregila-shortcuts-empty = Not set\nfiregila-shortcuts-duplicate = Already used by another command.\nfiregila-shortcuts-loading = Loading shortcuts...\nfiregila-shortcuts-no-window = Open a browser window to edit shortcuts.\n"),
                    ("chrome/browser/content/browser/sidebar/sidebar-main.css", SB_MAIN_CSS),
+                   ("chrome/browser/skin/classic/browser/preferences/preferences.css", FIREGILA_SHORTCUTS_CSS),
                    ("chrome/browser/content/browser/sidebar/browser-sidebar.js", SB_BOOTSTRAP_JS),
                    ("chrome/browser/content/browser/sidebar/browser-sidebar.js", SB_ANIM_JS),
                    ("chrome/browser/content/browser/sidebar/browser-sidebar.js", SB_WEBPANELS_JS),
                    ("chrome/browser/content/browser/sidebar/browser-sidebar.js", SB_WORKSPACES_JS)],
-          overwrites=[("chrome/browser/content/browser/default-bookmarks.html", DEFAULT_BOOKMARKS)])
+          overwrites=[("chrome/browser/content/browser/default-bookmarks.html", DEFAULT_BOOKMARKS),
+                      ("chrome/browser/content/browser/preferences/config/firegila-shortcuts.mjs", FIREGILA_SHORTCUTS_MJS)])

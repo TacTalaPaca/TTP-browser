@@ -1,11 +1,12 @@
 pkgname=firegila
 pkgver=@VERSION@
 pkgrel=@REVISION@
-pkgdesc="Firefox ESR based web browser"
+pkgdesc="@SUMMARY@"
 arch=('x86_64')
-url="https://firegila.org/"
-license=('MPL-2.0')
+url="@HOMEPAGE@"
+license=('@LICENSE_MPL@' '@LICENSE_GPL@')
 depends=(@DEPENDS@)
+install=firegila.install
 options=('!strip' '!debug')
 
 package() {

@@ -11,6 +11,10 @@ if [ -z "$formats" ]; then
 fi
 
 require_build
+[ -n "$(changelog_bullets)" ] || {
+  echo "package: no CHANGELOG entry for $VERSION" >&2
+  exit 1
+}
 prepare_out
 
 STAGE="$(mktemp -d)"

@@ -45,6 +45,12 @@ run starts the same. Anything after the flags goes to the browser.
 
 Formats: `tarball`, `deb`, `rpm`, `arch`, `appimage`.
 
+Package metadata comes from `scripts/packages/common.sh`: maintainer,
+vendor, homepage, summary and license. Format scripts use the shared values.
+
+`package.sh` refuses to overwrite an existing `packages/<version>/` and
+requires a `CHANGELOG.md` entry for the current version.
+
 ## Requirements
 
 | need | used by |
@@ -144,12 +150,20 @@ cache lives in `build/tools/`, also gitignored.
 
 ## Versions and releases
 
-- `VERSION` is the Firegila release.
+- Versions use the 1.x line. Do not create new 0.x versions.
+- The first number is the major line and changes only when the owner decides.
+- The second number increases by one for every commit.
+- `VERSION` is the single source for the current version.
 - `ESR_VERSION` is the Firefox base.
-- Every release gets its own `packages/<VERSION>/` folder. A new product
-  release is a new `VERSION`, a new release entry in
-  `packaging/common/org.firegila.Firegila.metainfo.xml`, a new folder, and a
-  new `v<VERSION>` tag.
+- `CHANGELOG.md` gets an entry for every version.
+- Commit subjects use `Firegila <version>: <summary>`.
+- Every release gets its own `packages/<version>/` folder and a release entry
+  in `packaging/common/org.firegila.Firegila.metainfo.xml`.
+- Tag releases as `v<version>`. Do not create or push 0.x tags.
+- Existing 0.x packages are kept. Do not rebuild or delete them.
+- Do not add a remote, commit, tag, push or publish until the owner explicitly
+  states.
+- Do not rewrite history without owner approval.
 - `scripts/check-commit.sh` runs before a commit. It fails on tracked ignored
   files, staged files under `build/`, `packages/`, `sources/` or
   `scripts/__pycache__`, large staged files, and whitespace errors.

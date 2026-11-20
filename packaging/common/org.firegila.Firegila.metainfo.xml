@@ -4,7 +4,7 @@
   <name>Firegila</name>
   <summary>Neutral web browser based on Firefox ESR</summary>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>MPL-2.0</project_license>
+  <project_license>MPL-2.0 AND GPL-3.0-or-later</project_license>
   <description>
     <p>
       Firegila is a repackage of Firefox ESR with a neutral theme, a workspace
@@ -13,13 +13,29 @@
     </p>
   </description>
   <launchable type="desktop-id">firegila.desktop</launchable>
+  <url type="homepage">https://github.com/TacTalaPaca/TTP-browser</url>
+  <url type="bugtracker">https://github.com/TacTalaPaca/TTP-browser/issues</url>
   <developer id="org.firegila">
-    <name>Firegila</name>
+    <name>TacTalaPaca</name>
   </developer>
   <provides>
     <binary>firegila</binary>
   </provides>
+  <categories>
+    <category>Network</category>
+    <category>WebBrowser</category>
+  </categories>
+  <keywords>
+    <keyword>web browser</keyword>
+    <keyword>Firefox</keyword>
+  </keywords>
   <releases>
+    <release version="1.1" date="2026-11-20">
+      <description>
+        <p>Updated the Firefox ESR base to 153.7.0.</p>
+        <p>Adds tab group polish, split view and drag fixes, editable shortcuts and stronger privacy defaults.</p>
+      </description>
+    </release>
     <release version="0.1.3" date="2026-11-08"/>
     <release version="0.1.2" date="2026-11-07"/>
     <release version="0.1.1" date="2026-11-07"/>

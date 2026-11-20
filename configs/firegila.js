@@ -19,6 +19,10 @@ pref("browser.tabs.crashReporting.sendReport", false);
 pref("extensions.pocket.enabled", false);
 pref("browser.privatebrowsing.vpn.ui.enabled", false);
 pref("browser.contentblocking.report.hide_vpn_banner", true);
+// Firegila starts every profile on Strict tracking protection.
+pref("browser.contentblocking.category", "strict");
+pref("privacy.globalprivacycontrol.enabled", true);
+pref("privacy.globalprivacycontrol.functionality.enabled", true);
 pref("browser.shopping.experience2023.enabled", false);
 pref("browser.microsurvey.enabled", false);
 pref("browser.preferences.moreFromMozilla", false);
