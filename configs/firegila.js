@@ -49,10 +49,11 @@ pref("browser.topsites.contile.enabled", false);
 pref("browser.newtabpage.activity-stream.newtabWallpapers.enabled", true);
 pref("browser.newtabpage.activity-stream.newtabWallpapers.customWallpaper.enabled", true);
 pref("browser.newtabpage.activity-stream.newtabWallpapers.customColor.enabled", false);
-// Weather widget.
-pref("browser.newtabpage.activity-stream.showWeather", true);
+// Weather widget. Off by default, opt-in from the New Tab customize menu.
+pref("browser.newtabpage.activity-stream.showWeather", false);
 pref("browser.newtabpage.activity-stream.system.showWeather", true);
-pref("browser.newtabpage.activity-stream.widgets.weather.enabled", true);
+pref("browser.newtabpage.activity-stream.widgets.system.weather.enabled", true);
+pref("browser.newtabpage.activity-stream.widgets.weather.enabled", false);
 // Endpoints are set explicitly. The widget falls back to the urlbar Merino
 // endpoint when these are empty, so leaving them unset breaks the fetch.
 pref("browser.newtabpage.activity-stream.weather.reportEndpoint", "https://merino.services.mozilla.com/api/v1/suggest");
@@ -64,6 +65,8 @@ pref("browser.newtabpage.activity-stream.showSponsoredTopSites", false);
 
 // AI
 // GenerativeAI policy locks the same switches.
+// Local translations stay on. They run on device. The AIControls policy
+// sets Translations available and keeps the other AI features blocked.
 pref("browser.ml.enabled", false);
 pref("browser.ml.chat.enabled", false);
 pref("browser.ml.pageAssist.enabled", false);
@@ -116,6 +119,13 @@ pref("firegila.sidebar.webPanels", "[]");
 // HTTPS only and query stripping
 pref("dom.security.https_only_mode", true);
 pref("privacy.query_stripping.enabled", true);
+// 0-RTT replay risk. Off is safe and does not break sites.
+pref("security.tls.enable_0rtt_data", false);
+
+// DRM
+// On by default so video sites play on first use. Widevine downloads from
+// Google on the first DRM site. The stock General checkbox can turn it off.
+pref("media.eme.enabled", true);
 
 // Session restore
 // Reopen the same windows, tabs and workspaces on the next start. Hidden
@@ -135,6 +145,17 @@ pref("privacy.clearOnShutdown.cookies", false);
 pref("privacy.clearOnShutdown.history", false);
 pref("privacy.clearOnShutdown.sessions", false);
 pref("privacy.clearOnShutdown.formdata", false);
+pref("privacy.clearOnShutdown.downloads", false);
+pref("privacy.clearOnShutdown.offlineApps", false);
+pref("privacy.clearOnShutdown.siteSettings", false);
+// The clear-on-shutdown UI uses the v2 categories. The master switch is
+// off, and every category is off too, so data stays even if it is turned on.
+pref("privacy.clearOnShutdown_v2.historyFormDataAndDownloads", false);
+pref("privacy.clearOnShutdown_v2.browsingHistoryAndDownloads", false);
+pref("privacy.clearOnShutdown_v2.cookiesAndStorage", false);
+pref("privacy.clearOnShutdown_v2.cache", false);
+pref("privacy.clearOnShutdown_v2.siteSettings", false);
+pref("privacy.clearOnShutdown_v2.formdata", false);
 pref("browser.passwords.rememberPasswords", true);
 pref("signon.rememberSignons", true);
 
@@ -142,6 +163,16 @@ pref("signon.rememberSignons", true);
 pref("privacy.resistFingerprinting", false);
 pref("geo.enabled", true);
 pref("webgl.disabled", false);
+
+// Content defaults
+// Cookie banners: reject optional cookies, normal and private windows.
+pref("cookiebanners.service.mode", 1);
+pref("cookiebanners.service.mode.privateBrowsing", 1);
+pref("cookiebanners.ui.desktop.enabled", true);
+// Autoplay: block audible media, allow muted.
+pref("media.autoplay.default", 1);
+// Payment autofill stays off. Address autofill stays available.
+pref("extensions.formautofill.creditCards.enabled", false);
 
 // Containers
 // Not offered. No menu entry, no settings page, no creation path. The two
@@ -164,6 +195,17 @@ pref("firegila.workspaces.list", "[{\"id\":\"ws-default\",\"name\":\"Default\"}]
 // Stock ESR has both off.
 pref("toolkit.tabbox.switchByScrolling", true);
 pref("general.autoScroll", true);
+
+// Settings
+// Classic layout. The new settings redesign leaves the Home pane empty in
+// this ESR base.
+pref("browser.settings-redesign.enabled", false);
+
+// App windows
+// Firefox Taskbar Tabs on Linux. The URL bar page action installs the
+// current site as an app window. The theme patch adds the menu entry and
+// compact chrome.
+pref("browser.taskbarTabs.enabled", true);
 
 // uBlock Origin
 // Bundled in distribution/extensions, pinned, private windows on. The UUID

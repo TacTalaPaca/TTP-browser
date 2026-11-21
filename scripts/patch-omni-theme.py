@@ -434,6 +434,33 @@ TOKENS_SHARED = "chrome/toolkit/skin/classic/global/design-system/tokens-shared.
 # Last stylesheet in the global import chain, so appends here win the cascade.
 GLOBAL_SHARED = "chrome/toolkit/skin/classic/global/global-shared.css"
 MAIN_EDITS = {
+    # App window desktop entries get a window class so the taskbar matches
+    # the Firegila entry and icon.
+    "moz-src/browser/components/shell/ShellService.sys.mjs": [
+        ("""  async createLinuxDesktopEntry(
+    appId,
+    title,
+    argv,
+    iconPath,
+    { window = null } = {}
+  ) {
+""",
+         """  async createLinuxDesktopEntry(
+    appId,
+    title,
+    argv,
+    iconPath,
+    { window = null, startupWMClass = null } = {}
+  ) {
+"""),
+        ("""    ini.setString("Desktop Entry", "Icon", iconPath);
+""",
+         """    ini.setString("Desktop Entry", "Icon", iconPath);
+    if (startupWMClass) {
+      ini.setString("Desktop Entry", "StartupWMClass", startupWMClass);
+    }
+"""),
+    ],
     # Always draw chrome ourselves instead of handing it to the native
     # platform theme. Without this the system theme skips the CSS that
     # colours the toolbox, urlbar and fields, so it renders differently
@@ -886,16 +913,599 @@ NEWTAB_BUTTONS_CSS = """
   transition: background-color var(--fg-motion-fast) var(--fg-ease);
 }
 .top-site-outer .context-menu-button:hover {
-  background-color: var(--fg-hover) !important;
+  background-color: var(--fg-active) !important;
   fill: var(--fg-text);
   color: var(--fg-text);
 }
 .top-site-outer .context-menu-button:hover:active {
   background-color: var(--fg-active) !important;
 }
+.top-site-outer .icon-pin-small {
+  display: none !important;
+}
 """
 
 BROWSER_EDITS = {
+    "chrome/browser/content/browser/browser-fullScreenAndPointerLock.js": [
+        ("""      this._mouseTargetRect = {
+        top: rect.top + 50,
+        bottom: rect.bottom,
+        left: rect.left,
+        right: rect.right,
+      };
+""",
+         """      this._mouseTargetRect = {
+        top: rect.top + gNavToolbox.getBoundingClientRect().height,
+        bottom: rect.bottom,
+        left: rect.left,
+        right: rect.right,
+      };
+"""),
+        ("""  showNavToolbox(trackMouse = true) {
+    if (BrowserHandler.kiosk) {
+      return;
+    }
+    this.fullScreenToggler.hidden = true;
+    gNavToolbox.removeAttribute("fullscreenShouldAnimate");
+    gNavToolbox.style.marginTop = "";
+""",
+         """  showNavToolbox(trackMouse = true) {
+    if (BrowserHandler.kiosk) {
+      return;
+    }
+    if (
+      trackMouse &&
+      document.documentElement.hasAttribute("inDOMFullscreen")
+    ) {
+      return;
+    }
+    if (
+      !trackMouse &&
+      document.documentElement.hasAttribute("inFullscreen") &&
+      !document.documentElement.hasAttribute("inDOMFullscreen")
+    ) {
+      return;
+    }
+    this.fullScreenToggler.hidden = true;
+    gNavToolbox.removeAttribute("fullscreenShouldAnimate");
+    gNavToolbox.removeAttribute("fg-navbar-hidden");
+    gNavToolbox.style.marginTop = "";
+"""),
+        ("""  hideNavToolbox(aAnimate = false) {
+    if (this._isChromeCollapsed) {
+      return;
+    }
+    if (!Services.prefs.getBoolPref("browser.fullscreen.autohide")) {
+      return;
+    }
+""",
+         """  hideNavToolbox(aAnimate = false) {
+    if (this._isChromeCollapsed) {
+      return;
+    }
+"""),
+        ("""    if (
+      aAnimate &&
+      window.matchMedia("(prefers-reduced-motion: no-preference)").matches &&
+      !BrowserHandler.kiosk
+    ) {
+      gNavToolbox.setAttribute("fullscreenShouldAnimate", true);
+    }
+
+    gNavToolbox.style.marginTop =
+      -gNavToolbox.getBoundingClientRect().height + "px";
+""",
+         """    gNavToolbox.removeAttribute("fullscreenShouldAnimate");
+    gNavToolbox.style.marginTop = "";
+    document.documentElement.style.setProperty(
+      "--fg-fullscreen-toolbox-height",
+      `${gNavToolbox.getBoundingClientRect().height}px`
+    );
+    gNavToolbox.setAttribute("fg-navbar-hidden", "");
+"""),
+    ],
+    # App windows. Taskbar Tabs is stock and works on Linux. Firegila enables
+    # it, brands the desktop entry, and adds compact chrome.
+    "modules/taskbartabs/TaskbarTabsChrome.sys.mjs": [
+        ("""    // Add a button to control muting/unmuting
+    initAudioButton(aWindow);
+  },
+};
+""",
+         """    // Add a button to control muting/unmuting
+    initAudioButton(aWindow);
+
+    // Firegila compact app window. Keep the identity chip and hide the URL
+    // text until the user opens the location bar.
+    document.documentElement.setAttribute("firegila-compact-app", "true");
+    initCompactAddressBar(aWindow);
+
+    // Stock places reload between back and forward. App windows read better
+    // as back, forward, reload.
+    const back = document.getElementById("back-button");
+    const forward = document.getElementById("forward-button");
+    if (back && forward) {
+      back.after(forward);
+    }
+
+    // The tab strip is hidden. A spacer keeps the right controls at the edge
+    // without a page title in the toolbar.
+    const urlbar = document.getElementById("urlbar-container");
+    if (urlbar && !document.getElementById("firegila-app-toolbar-space")) {
+      const spacer = document.createXULElement("spacer");
+      spacer.id = "firegila-app-toolbar-space";
+      spacer.setAttribute("flex", "1");
+      urlbar.after(spacer);
+    }
+  },
+};
+"""),
+        ("""function initCornerIcon(aWindow) {
+""",
+         """function initCompactAddressBar(aWindow) {
+  const document = aWindow.document;
+  const root = document.documentElement;
+  const urlbar = aWindow.gURLBar;
+  const reveal = () => root.setAttribute("firegila-urlbar", "open");
+  const collapse = () => {
+    if (urlbar.view.isOpen) {
+      return;
+    }
+    if (document.getElementById("identity-popup")?.state === "open") {
+      return;
+    }
+    root.removeAttribute("firegila-urlbar");
+  };
+  const scheduleCollapse = () => aWindow.setTimeout(collapse, 0);
+
+  aWindow.addEventListener(
+    "command",
+    event => {
+      if (event.target.id === "Browser:OpenLocation") {
+        reveal();
+      }
+    },
+    true
+  );
+  urlbar.addEventListener("blur", scheduleCollapse, true);
+  urlbar.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      scheduleCollapse();
+    }
+  });
+  const notifications = document.getElementById("notification-popup");
+  notifications?.addEventListener("popupshowing", reveal);
+}
+
+function initCornerIcon(aWindow) {
+"""),
+    ],
+    "modules/taskbartabs/TaskbarTabsUtils.sys.mjs": [
+        ('return `${lazy.ShellService.getGlibPrgname()}.webapp-${aTaskbarTabId}`;',
+         "return `firegila.webapp-${aTaskbarTabId}`;"),
+    ],
+    "modules/taskbartabs/TaskbarTabsPin.sys.mjs": [
+        ("""    await lazy.ShellService.createLinuxDesktopEntry(
+      appId,
+      aTaskbarTab.name,
+      args,
+      aFileIcon.path,
+      { window: aWindow }
+    );
+""",
+         """    await lazy.ShellService.createLinuxDesktopEntry(
+      appId,
+      aTaskbarTab.name,
+      args,
+      aFileIcon.path,
+      { window: aWindow, startupWMClass: appId }
+    );
+"""),
+    ],
+    # The data promise sits in the existing Startup group.
+    "chrome/browser/content/browser/preferences/main.js": [
+        ("""      {
+        id: "alwaysCheckDefault",
+        l10nId: "always-check-default",
+      },
+    ],
+  };
+}
+""",
+         """      {
+        id: "alwaysCheckDefault",
+        l10nId: "always-check-default",
+      },
+      {
+        id: "firegilaDataKept",
+        control: "moz-message-bar",
+        controlAttrs: {
+          role: "status",
+        },
+        l10nId: "firegila-data-kept",
+      },
+    ],
+  };
+}
+"""),
+        ("""SettingGroupManager.registerGroups({
+  defaultBrowser: createDefaultBrowserConfig(),
+""",
+         """Preferences.addSetting({ id: "firegilaDataKept" });
+
+SettingGroupManager.registerGroups({
+  defaultBrowser: createDefaultBrowserConfig(),
+"""),
+    ],
+    # The save panel lists Bookmarks and Shortcuts only. New folders live
+    # under Bookmarks, never under Shortcuts.
+    "chrome/browser/content/browser/places/editBookmark.js": [
+        ("""    // Update folder-tree selection
+    var folderTreeRow = this._element("folderTreeRow");
+    if (!folderTreeRow.hidden) {
+      var selectedNode = this._folderTree.selectedNode;
+      if (
+        !selectedNode ||
+        PlacesUtils.getConcreteItemGuid(selectedNode) != containerGuid
+      ) {
+        this._folderTree.selectItems([containerGuid]);
+      }
+    }
+""",
+         """    // Update folder-tree selection. Bookmarks is the tree root, so it has
+    // no row to select; the tree already lists its subfolders.
+    var folderTreeRow = this._element("folderTreeRow");
+    if (!folderTreeRow.hidden) {
+      var selectedNode = this._folderTree.selectedNode;
+      if (
+        containerGuid !==
+          Services.prefs.getStringPref("firegila.bookmarks.folder", "") &&
+        (!selectedNode ||
+          PlacesUtils.getConcreteItemGuid(selectedNode) != containerGuid)
+      ) {
+        this._folderTree.selectItems([containerGuid]);
+      }
+    }
+"""),
+        ("""  // Check if the pane is initialized to show only read-only fields.
+  get readOnly() {
+""",
+         """  // Check if the pane is initialized to show only read-only fields.
+  get readOnly() {
+    const guid = this._paneInfo?.itemGuid;
+    if (
+      guid &&
+      (guid ===
+        Services.prefs.getStringPref("firegila.bookmarks.folder", "") ||
+        guid ===
+          Services.prefs.getStringPref("firegila.bookmarks.shortcuts", ""))
+    ) {
+      return true;
+    }
+"""),
+        ("""  async _initFolderMenuList(aSelectedFolderGuid) {
+    // clean up first
+    var menupopup = this._folderMenuList.menupopup;
+""",
+         """  async _initFolderMenuList(aSelectedFolderGuid) {
+    const firegilaBookmarks = Services.prefs.getStringPref(
+      "firegila.bookmarks.folder",
+      ""
+    );
+    const firegilaShortcuts = Services.prefs.getStringPref(
+      "firegila.bookmarks.shortcuts",
+      ""
+    );
+    if (
+      firegilaBookmarks &&
+      [
+        PlacesUtils.bookmarks.toolbarGuid,
+        PlacesUtils.bookmarks.menuGuid,
+        PlacesUtils.bookmarks.unfiledGuid,
+        PlacesUtils.bookmarks.mobileGuid,
+      ].includes(aSelectedFolderGuid)
+    ) {
+      aSelectedFolderGuid = firegilaBookmarks;
+    }
+    // clean up first
+    var menupopup = this._folderMenuList.menupopup;
+""")
+        ,
+        ("""    // Build the static list
+    if (!this._staticFoldersListBuilt) {
+      mobileItem.label = PlacesUtils.getString("MobileBookmarksFolderTitle");
+      mobileItem.folderGuid = PlacesUtils.bookmarks.mobileGuid;
+      let unfiledItem = this._element("unfiledRootItem");
+      unfiledItem.label = PlacesUtils.getString("OtherBookmarksFolderTitle");
+      unfiledItem.folderGuid = PlacesUtils.bookmarks.unfiledGuid;
+      let bmMenuItem = this._element("bmRootItem");
+      bmMenuItem.label = PlacesUtils.getString("BookmarksMenuFolderTitle");
+      bmMenuItem.folderGuid = PlacesUtils.bookmarks.menuGuid;
+      let toolbarItem = this._element("toolbarFolderItem");
+      toolbarItem.label = PlacesUtils.getString("BookmarksToolbarFolderTitle");
+      toolbarItem.folderGuid = PlacesUtils.bookmarks.toolbarGuid;
+      this._staticFoldersListBuilt = true;
+    }
+""",
+         """    // Build the static list
+    if (!this._staticFoldersListBuilt) {
+      mobileItem.hidden = true;
+      let unfiledItem = this._element("unfiledRootItem");
+      unfiledItem.label = "Bookmarks";
+      unfiledItem.folderGuid =
+        firegilaBookmarks || PlacesUtils.bookmarks.unfiledGuid;
+      let bmMenuItem = this._element("bmRootItem");
+      bmMenuItem.label = "Shortcuts";
+      bmMenuItem.folderGuid =
+        firegilaShortcuts || PlacesUtils.bookmarks.menuGuid;
+      let toolbarItem = this._element("toolbarFolderItem");
+      toolbarItem.hidden = true;
+      this._staticFoldersListBuilt = true;
+    }
+"""),
+        ("""    this._recentFolders = [];
+    for (let guid of lastUsedFolderGuids) {
+      let bm = await PlacesUtils.bookmarks.fetch(guid);
+      if (bm) {
+        let title = PlacesUtils.bookmarks.getLocalizedTitle(bm);
+        this._recentFolders.push({ guid, title });
+      }
+    }
+""",
+         """    this._recentFolders = [];
+    const skipGuids = new Set([
+      PlacesUtils.bookmarks.toolbarGuid,
+      PlacesUtils.bookmarks.menuGuid,
+      PlacesUtils.bookmarks.unfiledGuid,
+      PlacesUtils.bookmarks.mobileGuid,
+      firegilaBookmarks,
+      firegilaShortcuts,
+    ]);
+    for (let guid of lastUsedFolderGuids) {
+      if (skipGuids.has(guid)) {
+        continue;
+      }
+      let bm = await PlacesUtils.bookmarks.fetch(guid);
+      if (bm) {
+        let title = PlacesUtils.bookmarks.getLocalizedTitle(bm);
+        this._recentFolders.push({ guid, title });
+      }
+    }
+    if (!aSelectedFolderGuid) {
+      aSelectedFolderGuid =
+        firegilaBookmarks || PlacesUtils.bookmarks.unfiledGuid;
+    }
+"""),
+        ("""  _onFolderListSelected() {
+    // Set a selectedGuid attribute to show special icons
+    let folderGuid = this.selectedFolderGuid;
+    if (folderGuid) {
+      this._folderMenuList.setAttribute("selectedGuid", folderGuid);
+    } else {
+      this._folderMenuList.removeAttribute("selectedGuid");
+    }
+  },
+""",
+         """  _onFolderListSelected() {
+    // Set a selectedGuid attribute to show special icons
+    let folderGuid = this.selectedFolderGuid;
+    if (folderGuid) {
+      this._folderMenuList.setAttribute("selectedGuid", folderGuid);
+    } else {
+      this._folderMenuList.removeAttribute("selectedGuid");
+    }
+    const shortcuts = Services.prefs.getStringPref(
+      "firegila.bookmarks.shortcuts",
+      ""
+    );
+    const isShortcuts = !!shortcuts && folderGuid === shortcuts;
+    const expander = this._element("foldersExpander");
+    if (expander) {
+      expander.hidden = isShortcuts;
+    }
+    if (isShortcuts) {
+      const treeRow = this._element("folderTreeRow");
+      if (treeRow) {
+        treeRow.hidden = true;
+      }
+      if (expander) {
+        expander.classList.remove("expander-up");
+        expander.classList.add("expander-down");
+      }
+    }
+  },
+"""),
+        ("""      const FOLDER_TREE_PLACE_URI =
+        "place:excludeItems=1&excludeQueries=1&type=" +
+        Ci.nsINavHistoryQueryOptions.RESULTS_AS_ROOTS_QUERY;
+      this._folderTree.place = FOLDER_TREE_PLACE_URI;
+
+      this._element("chooseFolderSeparator").hidden = this._element(
+        "chooseFolderMenuItem"
+      ).hidden = true;
+      this._folderTree.selectItems([this._bookmarkState.parentGuid]);
+      this._folderTree.focus();
+""",
+         """      const firegilaBookmarks = Services.prefs.getStringPref(
+        "firegila.bookmarks.folder",
+        ""
+      );
+      const FOLDER_TREE_PLACE_URI = firegilaBookmarks
+        ? `place:parent=${firegilaBookmarks}&excludeItems=1&excludeQueries=1`
+        : "place:excludeItems=1&excludeQueries=1&type=" +
+          Ci.nsINavHistoryQueryOptions.RESULTS_AS_ROOTS_QUERY;
+      this._folderTree.place = FOLDER_TREE_PLACE_URI;
+
+      this._element("chooseFolderSeparator").hidden = this._element(
+        "chooseFolderMenuItem"
+      ).hidden = true;
+      if (this._bookmarkState.parentGuid !== firegilaBookmarks) {
+        this._folderTree.selectItems([this._bookmarkState.parentGuid]);
+      }
+      this._folderTree.focus();
+"""),
+    ],
+    "chrome/browser/content/browser/places/placesContextMenu.js": [
+        ("""    placesContext.addEventListener("popupshowing", event =>
+      PlacesUIUtils.placesContextShowing(event)
+    );
+""",
+         """    function collapseContextSeparators(popup) {
+      const items = [...popup.children].filter(
+        el =>
+          el.localName === "menuitem" ||
+          el.localName === "menu" ||
+          el.localName === "menuseparator"
+      );
+      const isVisible = el =>
+        !el.hidden && getComputedStyle(el).display !== "none";
+      const shown = items.filter(
+        el => el.localName !== "menuseparator" && isVisible(el)
+      );
+      for (const el of items) {
+        if (el.localName === "menuseparator") {
+          el.hidden = true;
+        }
+      }
+      for (let i = 1; i < shown.length; i++) {
+        const next = shown[i];
+        let separator = null;
+        for (
+          let el = shown[i - 1].nextElementSibling;
+          el && el !== next;
+          el = el.nextElementSibling
+        ) {
+          if (el.localName === "menuseparator") {
+            separator = el;
+          }
+        }
+        if (separator) {
+          separator.hidden = false;
+        }
+      }
+    }
+
+    placesContext.addEventListener("popupshowing", event => {
+      PlacesUIUtils.placesContextShowing(event);
+      if (event.defaultPrevented) {
+        return;
+      }
+      const node = event.target._view?.selectedNode;
+      const guid = node?.bookmarkGuid;
+      if (!guid) {
+        collapseContextSeparators(placesContext);
+        return;
+      }
+      const bookmarks = Services.prefs.getStringPref(
+        "firegila.bookmarks.folder",
+        ""
+      );
+      const shortcuts = Services.prefs.getStringPref(
+        "firegila.bookmarks.shortcuts",
+        ""
+      );
+      const isRoot = guid === bookmarks || guid === shortcuts;
+      const editFolder = document.getElementById(
+        "placesContext_show_folder:info"
+      );
+      const deleteFolder = document.getElementById(
+        "placesContext_deleteFolder"
+      );
+      const newFolder = document.getElementById(
+        "placesContext_new:folder"
+      );
+      if (editFolder) {
+        editFolder.hidden = isRoot;
+      }
+      if (deleteFolder) {
+        deleteFolder.hidden = isRoot;
+      }
+      if (newFolder) {
+        newFolder.hidden = guid === shortcuts;
+      }
+      collapseContextSeparators(placesContext);
+    });
+"""),
+    ],
+    "chrome/browser/content/browser/places/places.js": [
+        ("""    this._places.addEventListener("focus", event =>
+      this.updateDetailsPane(event)
+    );
+
+    this._initFolderTree();
+""",
+         """    this._places.addEventListener("focus", event =>
+      this.updateDetailsPane(event)
+    );
+
+    this._initFolderTree();
+"""),
+        ("""  _initFolderTree() {
+    this._places.place = `place:type=${Ci.nsINavHistoryQueryOptions.RESULTS_AS_LEFT_PANE_QUERY}&excludeItems=1&expandQueries=0`;
+  },
+""",
+         """  _initFolderTree() {
+    const firegilaContainer = Services.prefs.getStringPref(
+      "firegila.bookmarks.container",
+      ""
+    );
+    this._places.place = firegilaContainer
+      ? `place:parent=${firegilaContainer}&excludeItems=1&expandQueries=0`
+      : `place:type=${Ci.nsINavHistoryQueryOptions.RESULTS_AS_LEFT_PANE_QUERY}&excludeItems=1&expandQueries=0`;
+  },
+"""),
+        ("""    var leftPaneSelection = "AllBookmarks"; // default to all-bookmarks
+""",
+         """    var leftPaneSelection =
+      Services.prefs.getStringPref("firegila.bookmarks.folder", "") ||
+      "AllBookmarks";
+"""),
+    ],
+    "chrome/browser/content/browser/browser-places.js": [
+        ("""  showPlacesOrganizer(item) {
+    var organizer = Services.wm.getMostRecentWindow("Places:Organizer");
+""",
+         """  showPlacesOrganizer(item) {
+    const firegilaBookmarks = Services.prefs.getStringPref(
+      "firegila.bookmarks.folder",
+      ""
+    );
+    if (
+      firegilaBookmarks &&
+      [
+        "AllBookmarks",
+        "BookmarksMenu",
+        "BookmarksToolbar",
+        "UnfiledBookmarks",
+      ].includes(item)
+    ) {
+      item = firegilaBookmarks;
+    }
+    var organizer = Services.wm.getMostRecentWindow("Places:Organizer");
+"""),
+        ("""    this.updateLabel("panelMenu_viewBookmarksToolbar", !this.toolbar.collapsed);
+    PanelUI.showSubView("PanelUI-bookmarks", anchor, event);
+""",
+         """    PanelUI.showSubView("PanelUI-bookmarks", anchor, event);
+"""),
+        ("""        } else if (aEvent.target.id == "panelMenu_viewBookmarksToolbar") {
+          this.toggleBookmarksToolbar("bookmark-tools");
+        }
+""",
+         """        }
+"""),
+
+    ],
+    "localization/en-US/browser/places.ftl": [
+        ("places-add-bookmark =\n  .label = Add Bookmark\u2026\n",
+         "places-add-bookmark =\n  .label = New Bookmark\n"),
+        ("places-add-folder-contextmenu =\n  .label = Add Folder\u2026\n",
+         "places-add-folder-contextmenu =\n  .label = New Folder\n"),
+        ("places-add-folder =\n  .label = Add Folder\u2026\n",
+         "places-add-folder =\n  .label = New Folder\n"),
+        ("places-edit-folder2 =\n  .label = Edit Folder\u2026\n",
+         "places-edit-folder2 =\n  .label = Rename Folder\n"),
+    ],
     # Vertical tabs get their own column after the strip, so the order is
     # strip, tabs, panel. The box moves out of the sidebar-main tabstrip slot
     # into a plain sibling. Stock finds it by ID everywhere it matters, and
@@ -907,6 +1517,170 @@ BROWSER_EDITS = {
     "chrome/browser/content/browser/browser.xhtml": [
         ('<splitter orient="vertical" id="vertical-pinned-tabs-splitter" resizebefore="sibling" resizeafter="none" hidden="true"/>',
          '<splitter orient="vertical" id="vertical-pinned-tabs-splitter" hidden="true"/>'),
+        ('    <command id="Browser:OpenLocation" />\n',
+         '    <command id="Browser:OpenLocation" />\n'
+         '    <command id="firegila-install-app" />\n'),
+        ("""      <toolbarbutton id="appMenu-save-file-button2"
+                     class="subviewbutton"
+                     data-l10n-id="appmenuitem-save-page"
+                     key="key_savePage"
+                     command="Browser:SavePage"/>
+""",
+         """      <toolbarbutton id="appMenu-save-file-button2"
+                     class="subviewbutton"
+                     data-l10n-id="appmenuitem-save-page"
+                     key="key_savePage"
+                     command="Browser:SavePage"/>
+      <toolbarbutton id="appMenu-install-app"
+                     class="subviewbutton"
+                     data-l10n-id="appmenuitem-install-app"
+                     command="firegila-install-app"
+                     hidden="true"/>
+"""),
+        ("""  <menupopup id="sidebar-bookmarks-context-menu">
+    <menuitem data-l10n-id="places-open-all-bookmarks"
+              id="sidebar-bookmarks-context-open-all-bookmarks"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-open-all"/>
+    <menuitem data-l10n-id="sidebar-context-menu-open-in-tab"
+              id="sidebar-bookmarks-context-open-in-tab"/>
+    <menu id="sidebar-bookmarks-context-open-in-container-tab"
+            data-l10n-id="sidebar-context-menu-open-in-container-tab"
+            hide-if-private-browsing="true"
+            hide-if-usercontext-disabled="true">
+      <menupopup id="sidebar-bookmarks-context-container-tab-popup"/>
+    </menu>
+    <menuitem data-l10n-id="sidebar-context-menu-open-in-window"
+              id="sidebar-bookmarks-context-open-in-window"/>
+    <menuitem data-l10n-id="sidebar-context-menu-open-in-private-window"
+              id="sidebar-bookmarks-context-open-in-private-window"/>
+    <menuitem data-l10n-id="places-show-in-folder"
+              id="sidebar-bookmarks-context-show-in-folder"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-open-options"/>
+    <menuitem data-l10n-id="sidebar-bookmarks-context-menu-edit-bookmark"
+              id="sidebar-bookmarks-context-edit-bookmark"/>
+    <menuitem data-l10n-id="sidebar-bookmarks-context-menu-delete-bookmark"
+              id="sidebar-bookmarks-context-delete-bookmark"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-sort"/>
+    <menuitem data-l10n-id="places-sortby-name"
+              id="sidebar-bookmarks-context-sort-by-name"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-cut-copy"/>
+    <menuitem data-l10n-id="text-action-cut"
+              id="sidebar-bookmarks-context-cut"/>
+    <menuitem data-l10n-id="text-action-copy"
+              id="sidebar-bookmarks-context-copy"/>
+    <menuitem data-l10n-id="text-action-paste"
+              id="sidebar-bookmarks-context-paste"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-edit-copy"/>
+    <menuitem data-l10n-id="sidebar-context-menu-copy-link"
+              id="sidebar-bookmarks-context-copy-link"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-add"/>
+    <menuitem data-l10n-id="places-add-bookmark"
+              id="sidebar-bookmarks-context-add-bookmark"/>
+    <menuitem data-l10n-id="places-add-folder-contextmenu"
+              id="sidebar-bookmarks-context-add-folder"/>
+    <menuitem data-l10n-id="places-add-separator"
+              id="sidebar-bookmarks-context-add-separator"/>
+  </menupopup>
+""",
+         """  <menupopup id="sidebar-bookmarks-context-menu">
+    <menuitem data-l10n-id="places-open-all-bookmarks"
+              id="sidebar-bookmarks-context-open-all-bookmarks"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-open-all"/>
+    <menuitem data-l10n-id="sidebar-context-menu-open-in-tab"
+              id="sidebar-bookmarks-context-open-in-tab"/>
+    <menuitem data-l10n-id="sidebar-context-menu-open-in-window"
+              id="sidebar-bookmarks-context-open-in-window"/>
+    <menuitem data-l10n-id="sidebar-context-menu-open-in-private-window"
+              id="sidebar-bookmarks-context-open-in-private-window"/>
+    <menu id="sidebar-bookmarks-context-open-in-container-tab"
+            data-l10n-id="sidebar-context-menu-open-in-container-tab"
+            hide-if-private-browsing="true"
+            hide-if-usercontext-disabled="true">
+      <menupopup id="sidebar-bookmarks-context-container-tab-popup"/>
+    </menu>
+    <menuitem data-l10n-id="places-show-in-folder"
+              id="sidebar-bookmarks-context-show-in-folder"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-open-options"/>
+    <menuitem data-l10n-id="places-add-bookmark"
+              id="sidebar-bookmarks-context-add-bookmark"/>
+    <menuitem data-l10n-id="places-add-folder-contextmenu"
+              id="sidebar-bookmarks-context-add-folder"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-add"/>
+    <menuitem data-l10n-id="sidebar-bookmarks-context-menu-edit-bookmark"
+              id="sidebar-bookmarks-context-edit-bookmark"/>
+    <menuitem data-l10n-id="sidebar-bookmarks-context-menu-delete-bookmark"
+              id="sidebar-bookmarks-context-delete-bookmark"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-edit-copy"/>
+    <menuitem data-l10n-id="sidebar-context-menu-copy-link"
+              id="sidebar-bookmarks-context-copy-link"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-sort"/>
+    <menuitem data-l10n-id="places-sortby-name"
+              id="sidebar-bookmarks-context-sort-by-name"/>
+    <menuseparator id="sidebar-bookmarks-context-sep-cut-copy" hidden="true"/>
+    <menuitem data-l10n-id="text-action-cut"
+              id="sidebar-bookmarks-context-cut" hidden="true"/>
+    <menuitem data-l10n-id="text-action-copy"
+              id="sidebar-bookmarks-context-copy" hidden="true"/>
+    <menuitem data-l10n-id="text-action-paste"
+              id="sidebar-bookmarks-context-paste" hidden="true"/>
+    <menuitem data-l10n-id="places-add-separator"
+              id="sidebar-bookmarks-context-add-separator" hidden="true"/>
+  </menupopup>
+"""),
+        ("""      <toolbarbutton id="panelMenu_viewBookmarksToolbar"
+                     class="subviewbutton"
+                     data-l10n-id="bookmarks-tools-toolbar-visibility-panel"
+                     data-l10n-args='{ "isVisible": false }'
+                     />
+""", ""),
+        ("""      <toolbarbutton id="panelMenu_searchBookmarks"
+                     data-l10n-id="bookmarks-search"
+                     class="subviewbutton"
+                     />
+""",
+         """      <toolbarbutton id="panelMenu_searchBookmarks"
+                     data-l10n-id="bookmarks-search"
+                     class="subviewbutton"
+                     />
+      <toolbarbutton id="panelMenu_bookmarksFolder"
+                     class="subviewbutton"
+                     data-l10n-id="firegila-bookmarks-folder"/>
+      <toolbarbutton id="panelMenu_shortcutsFolder"
+                     class="subviewbutton"
+                     data-l10n-id="firegila-shortcuts-folder"/>
+"""),
+        ("""        <menu id="BMB_bookmarksToolbar"
+              class="bookmark-item menu-iconic"
+              data-l10n-id="bookmarks-toolbar-menu"
+              container="true">
+""",
+         """        <menu id="BMB_bookmarksToolbar"
+              class="bookmark-item menu-iconic"
+              data-l10n-id="bookmarks-toolbar-menu"
+              container="true"
+              hidden="true">
+"""),
+        ("""        <menu id="BMB_unsortedBookmarks"
+              class="bookmark-item menu-iconic"
+              data-l10n-id="bookmarks-other-bookmarks-menu"
+              container="true">
+""",
+         """        <menu id="BMB_unsortedBookmarks"
+              class="bookmark-item menu-iconic"
+              data-l10n-id="bookmarks-other-bookmarks-menu"
+              container="true"
+              hidden="true">
+"""),
+        ("""      <menuseparator id="bookmarksMenuItemsSeparator"/>
+      <!-- Bookmarks menu items -->
+""",
+         """      <menuseparator id="bookmarksMenuItemsSeparator"/>
+      <menuitem id="firegilaBookmarksMenuFolder"
+                data-l10n-id="firegila-bookmarks-folder"/>
+      <menuitem id="firegilaShortcutsMenuFolder"
+                data-l10n-id="firegila-shortcuts-folder"/>
+      <!-- Bookmarks menu items -->
+"""),
         ("""  <box context="sidebar-context-menu" id="sidebar-container" class="chrome-block" hidden="true">
     <html:sidebar-main flex="1">
       <box id="vertical-tabs" slot="tabstrip" customizable="true" contextmenu="toolbar-context-menu"></box>
@@ -1027,7 +1801,7 @@ BROWSER_EDITS = {
         ("""<key id="key_duplicateTab" command="Browser:DuplicateTab"/>
 """,
          """<key id="key_duplicateTab" command="Browser:DuplicateTab"/>
-<key id="key_firegilaCopyPageLink" data-l10n-id="firegila-copy-page-link" command="firegila-cmd-copy-page-link" key="L" modifiers="accel,shift"/>
+<key id="key_firegilaCopyPageLink" command="firegila-cmd-copy-page-link" key="L" modifiers="accel,shift"/>
 """),
         ("""      <menuitem id="context-selectall"
                 data-l10n-id="text-action-select-all"
@@ -1393,6 +2167,240 @@ BROWSER_EDITS = {
     # Bookmarks use the same card surface as history, open tabs and the
     # customizer. The stock page drops the list straight into the panel.
     "chrome/browser/content/browser/sidebar/sidebar-bookmarks.mjs": [
+        ("""      editBookmark,
+      deleteBookmark,
+      showInFolder,
+      paste,
+    } = this.#contextMenuItems;
+
+    openAllBookmarks.hidden = false;
+    openAllBookmarks.disabled = false;
+""",
+         """      editBookmark,
+      deleteBookmark,
+      showInFolder,
+      sepAdd,
+      addBookmark,
+      addFolder,
+      addSeparator,
+      paste,
+    } = this.#contextMenuItems;
+
+    openAllBookmarks.hidden = false;
+    openAllBookmarks.disabled = false;
+"""),
+        ("""      copyLink,
+      sepEditCopy,
+      sepAdd,
+      addBookmark,
+      addFolder,
+      addSeparator,
+      paste,
+""",
+         """      copyLink,
+      sepEditCopy,
+      sepCutCopy,
+      cut,
+      copy,
+      sepOpenOptions,
+      sepAdd,
+      addBookmark,
+      addFolder,
+      addSeparator,
+      paste,
+      sepSort,
+"""),
+        ("      alwaysShownItems: [sepCutCopy, cut, copy],\n",
+         "      alwaysShownItems: [],\n"),
+        ("""  async getBookmarksList() {
+    const tree = await lazy.PlacesUtils.promiseBookmarksTree("root________");
+    const { bookmarks } = lazy.PlacesUtils;
+    const guidToL10nId = {
+      [bookmarks.menuGuid]: "sidebar-bookmarks-folder-menu",
+      [bookmarks.toolbarGuid]: "sidebar-bookmarks-folder-toolbar",
+      [bookmarks.unfiledGuid]: "sidebar-bookmarks-folder-other",
+      [bookmarks.mobileGuid]: "sidebar-bookmarks-folder-mobile",
+    };
+    this.#normalizeBookmarkNode(tree, guidToL10nId);
+    tree.children?.sort((a, b) => {
+      if (a.guid === bookmarks.toolbarGuid) {
+        return -1;
+      }
+      if (b.guid === bookmarks.toolbarGuid) {
+        return 1;
+      }
+      return 0;
+    });
+    return tree;
+  }
+""",
+         """  async getBookmarksList() {
+    const win = Services.wm.getMostRecentWindow("navigator:browser");
+    await win?.FiregilaBookmarks?.ready;
+    const container = Services.prefs.getStringPref(
+      "firegila.bookmarks.container",
+      ""
+    );
+    const bookmarksGuid = Services.prefs.getStringPref(
+      "firegila.bookmarks.folder",
+      ""
+    );
+    if (container) {
+      try {
+        const tree = await lazy.PlacesUtils.promiseBookmarksTree(container);
+        this.#normalizeBookmarkNode(tree, {});
+        tree.isRootFolder = true;
+        tree.children?.sort((a, b) => {
+          if (a.guid === bookmarksGuid) {
+            return -1;
+          }
+          if (b.guid === bookmarksGuid) {
+            return 1;
+          }
+          return 0;
+        });
+        return tree;
+      } catch (e) {}
+    }
+    return lazy.PlacesUtils.promiseBookmarksTree("root________");
+  }
+"""),
+        # Add actions belong to folders only. The fixed roots cannot be
+        # renamed or deleted, and Shortcuts never offers a new folder.
+        ("""    openInPrivateWindow.hidden =
+      !isBookmark || !lazy.PrivateBrowsingUtils.enabled;
+    editBookmark.hidden = isSeparator;
+    editBookmark.disabled = isRootFolder;
+    paste.hidden = !this.#hasClipboardData();
+""",
+         """    openInPrivateWindow.hidden =
+      !isBookmark || !lazy.PrivateBrowsingUtils.enabled;
+    const fixedBookmarks = Services.prefs.getStringPref(
+      "firegila.bookmarks.folder",
+      ""
+    );
+    const fixedShortcuts = Services.prefs.getStringPref(
+      "firegila.bookmarks.shortcuts",
+      ""
+    );
+    const isFixedFolder =
+      isFolder &&
+      (this.triggerNode.guid === fixedBookmarks ||
+        this.triggerNode.guid === fixedShortcuts);
+    const isShortcuts = this.triggerNode.guid === fixedShortcuts;
+    editBookmark.hidden = isSeparator || isFixedFolder;
+    editBookmark.disabled = isRootFolder;
+    deleteBookmark.hidden = isFixedFolder;
+    paste.hidden = true;
+    sepCutCopy.hidden = true;
+    cut.hidden = true;
+    copy.hidden = true;
+    addSeparator.hidden = true;
+    sepOpenOptions.hidden = !isBookmark;
+"""),
+        ("""    const isSearchResult = isBookmark && !!this.searchQuery;
+    showInFolder.hidden = !isSearchResult;
+    if (isSearchResult) {
+      copyLink.hidden = true;
+      paste.hidden = true;
+      sepEditCopy.hidden = true;
+      sepAdd.hidden = true;
+      addBookmark.hidden = true;
+      addFolder.hidden = true;
+      addSeparator.hidden = true;
+    } else {
+      sepAdd.hidden = false;
+      addBookmark.hidden = false;
+      addFolder.hidden = false;
+      addSeparator.hidden = false;
+    }
+""",
+         """    const isSearchResult = isBookmark && !!this.searchQuery;
+    showInFolder.hidden = !isSearchResult;
+    if (isSearchResult) {
+      copyLink.hidden = true;
+      paste.hidden = true;
+      sepEditCopy.hidden = true;
+      sepAdd.hidden = true;
+      addBookmark.hidden = true;
+      addFolder.hidden = true;
+      addSeparator.hidden = true;
+    } else {
+      const canAdd = isFolder;
+      sepAdd.hidden = !canAdd;
+      addBookmark.hidden = !canAdd;
+      addFolder.hidden = !canAdd || isShortcuts;
+      addSeparator.hidden = true;
+    }
+    sepEditCopy.hidden = !isBookmark || isSearchResult;
+    sepSort.hidden =
+      !isFolder ||
+      (editBookmark.hidden && deleteBookmark.hidden && copyLink.hidden);
+"""),
+        ("""    sepSort.hidden = true;
+    sortByName.hidden = true;
+
+    sepCutCopy.hidden = false;
+    cut.hidden = isTagContainer;
+    copy.hidden = false;
+    paste.hidden = true;
+
+    sepEditCopy.hidden = true;
+    copyLink.hidden = true;
+
+    sepAdd.hidden = true;
+    addBookmark.hidden = true;
+    addFolder.hidden = true;
+    addSeparator.hidden = true;
+  }
+""",
+         """    sepSort.hidden = true;
+    sortByName.hidden = true;
+
+    sepCutCopy.hidden = true;
+    cut.hidden = true;
+    copy.hidden = true;
+    paste.hidden = true;
+
+    sepEditCopy.hidden = true;
+    copyLink.hidden = true;
+
+    sepAdd.hidden = true;
+    addBookmark.hidden = true;
+    addFolder.hidden = true;
+    addSeparator.hidden = true;
+  }
+"""),
+        ("""    sepSort.hidden = true;
+    sortByName.hidden = true;
+
+    sepCutCopy.hidden = false;
+    cut.hidden = false;
+    copy.hidden = false;
+    paste.hidden = !this.#hasClipboardData();
+
+    sepEditCopy.hidden = true;
+    copyLink.hidden = true;
+  }
+""",
+         """    sepSort.hidden = true;
+    sortByName.hidden = true;
+
+    sepCutCopy.hidden = true;
+    cut.hidden = true;
+    copy.hidden = true;
+    paste.hidden = true;
+
+    sepEditCopy.hidden = true;
+    copyLink.hidden = true;
+
+    sepAdd.hidden = true;
+    addBookmark.hidden = true;
+    addFolder.hidden = true;
+    addSeparator.hidden = true;
+  }
+"""),
+
         ("""    return html`
       <h3
         data-l10n-id="firefoxview-search-results-header"
@@ -1644,7 +2652,9 @@ SettingGroupManager.registerGroups({
         id: "firegilaWorkspaces",
         control: "moz-fieldset",
         l10nId: "firegila-workspaces-heading",
-        headingLevel: 3,
+        controlAttrs: {
+          headingLevel: 3,
+        },
         items: [
           {
             id: "firegilaWorkspacesEnabled",
@@ -1661,6 +2671,49 @@ SettingGroupManager.registerGroups({
         ],
       },
     ],
+"""),
+        ('  { id: "layers.acceleration.disabled", type: "bool", inverted: true },\n',
+         '  { id: "layers.acceleration.disabled", type: "bool", inverted: true },\n'
+         '  { id: "media.ffmpeg.vaapi.enabled", type: "bool" },\n'),
+        ("""Preferences.addSetting({
+  id: "allowHWAccel",
+  pref: "layers.acceleration.disabled",
+  deps: ["useRecommendedPerformanceSettings"],
+  visible({ useRecommendedPerformanceSettings }) {
+    return !useRecommendedPerformanceSettings.value;
+  },
+});
+""",
+         """Preferences.addSetting({
+  id: "allowHWAccel",
+  pref: "layers.acceleration.disabled",
+  deps: ["useRecommendedPerformanceSettings"],
+  visible({ useRecommendedPerformanceSettings }) {
+    return !useRecommendedPerformanceSettings.value;
+  },
+});
+Preferences.addSetting({
+  id: "allowVAAPI",
+  pref: "media.ffmpeg.vaapi.enabled",
+  deps: ["useRecommendedPerformanceSettings"],
+  visible({ useRecommendedPerformanceSettings }) {
+    return !useRecommendedPerformanceSettings.value;
+  },
+});
+"""),
+        ("""      {
+        id: "allowHWAccel",
+        l10nId: "performance-allow-hw-accel",
+      },
+""",
+         """      {
+        id: "allowHWAccel",
+        l10nId: "performance-allow-hw-accel",
+      },
+      {
+        id: "allowVAAPI",
+        l10nId: "performance-allow-vaapi",
+      },
 """),
     ],
     "chrome/browser/content/browser/preferences/preferences.xhtml": [
@@ -1773,6 +2826,34 @@ SettingGroupManager.registerGroups({
         # Logo stays centered at any row count. Stock moves it aside past 2 rows.
         ("const logoShouldBeCentered = !pocketEnabled && !hasContentWidgets && !hasManyTopSitesRows;",
          "const logoShouldBeCentered = true;"),
+        # Shortcuts are bookmarks now. The menu only opens them or deletes the
+        # bookmark. Pin, edit, dismiss and history deletion are gone.
+        ("""const TOP_SITES_CONTEXT_MENU_OPTIONS = [
+  "CheckPinTopSite",
+  "EditTopSite",
+  "Separator",
+  "OpenInNewWindow",
+  "OpenInPrivateWindow",
+  "Separator",
+  "BlockUrl",
+  "DeleteUrl",
+];
+""",
+         """const TOP_SITES_CONTEXT_MENU_OPTIONS = [
+  "OpenInNewWindow",
+  "OpenInPrivateWindow",
+  "DeleteShortcut",
+];
+"""),
+        ("""  EditTopSite: (site, index) => ({
+""",
+         """  DeleteShortcut: site => ({
+    ...LinkMenuOptions.UnpinTopSite(site),
+    id: "newtab-menu-delete-shortcut",
+    icon: "delete",
+  }),
+  EditTopSite: (site, index) => ({
+"""),
         # Slot count ignores the experiment config and uses the plain default.
         ("TopSitesMaxSitesPerRow: prefs.trainhopConfig?.topSites?.maxSitesPerRow ?? prefs.topSitesMaxSitesPerRow ?? TOP_SITES_MAX_SITES_PER_ROW",
          "TopSitesMaxSitesPerRow: prefs.topSitesMaxSitesPerRow ?? TOP_SITES_MAX_SITES_PER_ROW"),
@@ -2379,6 +3460,32 @@ const PREF_WALLPAPERS_CUSTOM_WALLPAPER_MAX =
         # remove keep working exactly as stock.
         ("    // Remove any duplicates from frecent and default sites\n",
          "    // Manual shortcuts only. History never fills the grid.\n    frecent = [];\n\n    // Remove any duplicates from frecent and default sites\n"),
+        ('''    Services.obs.addObserver(this, "browser-search-engine-modified");
+    Services.obs.addObserver(this, "browser-region-updated");
+''',
+         '''    Services.obs.addObserver(this, "browser-search-engine-modified");
+    Services.obs.addObserver(this, "browser-region-updated");
+    Services.obs.addObserver(this, "firegila-shortcuts-changed");
+'''),
+        ('''    Services.obs.removeObserver(this, "browser-search-engine-modified");
+    Services.obs.removeObserver(this, "browser-region-updated");
+''',
+         '''    Services.obs.removeObserver(this, "browser-search-engine-modified");
+    Services.obs.removeObserver(this, "browser-region-updated");
+    Services.obs.removeObserver(this, "firegila-shortcuts-changed");
+'''),
+        ('''  observe(subj, topic, data) {
+    switch (topic) {
+      case "browser-search-engine-modified":
+''',
+         '''  observe(subj, topic, data) {
+    switch (topic) {
+      case "firegila-shortcuts-changed":
+        lazy.NewTabUtils.pinnedLinks.resetCache();
+        this._broadcastPinnedSitesUpdated();
+        break;
+      case "browser-search-engine-modified":
+'''),
     ],
     # Home settings sections. Sponsored content and recent activity rows
     # are removed from Settings and the new tab customize panel.
@@ -2394,6 +3501,26 @@ const PREF_WALLPAPERS_CUSTOM_WALLPAPER_MAX =
          "firegila-workspaces-enabled =\n  .label = Enable workspaces\n\n"
          "firegila-workspaces-scroll =\n  .label = Switch workspaces by scrolling\n\n"
          "firegila-tabs-scroll =\n  .label = Switch tabs by scrolling"),
+        ("""preferences-etp-level-standard =
+    .label = Standard (default)
+""",
+         """preferences-etp-level-standard =
+    .label = Standard
+"""),
+        ("""preferences-etp-level-strict =
+    .label = Strict
+""",
+         """preferences-etp-level-strict =
+    .label = Strict (default)
+"""),
+        ("""enhanced-tracking-protection-setting-strict =
+  .label = Strict
+""",
+         """enhanced-tracking-protection-setting-strict =
+  .label = Strict (default)
+"""),
+        ("    .description = Quickly access bookmarks, tabs from your phone, AI chatbots, and more without leaving your main view.",
+         "    .description = Quickly access bookmarks and tabs from your phone without leaving your main view."),
     ],
     "localization/en-US/browser/profile/default-bookmarks.ftl": [
         ("default-bookmarks-firefox-heading = Mozilla Firefox",
@@ -3756,37 +4883,43 @@ NEWTAB_TWEAKS_CSS = """
   border: 1px solid var(--fg-border) !important;
   border-radius: var(--fg-radius) !important;
   box-shadow: none !important;
-  /* Stock states drop the inline padding, leaving top and right unequal. */
   padding: var(--space-medium) !important;
   box-sizing: border-box;
-  /* Fixed width. The card grew after use location, which shrank the right
-     inset and made the padding look wrong. Same width in every state. */
-  inline-size: 170px;
+  inline-size: 100%;
+  min-inline-size: 0;
   transition: background-color var(--fg-motion-fast) var(--fg-ease);
 }
-.nova-enabled .weather-widget.weather-search-active.small-widget {
-  inline-size: 170px;
-}
-/* The right sidebar column is 150px, so a 170px card overflowed it and
-   ate the page padding on that side. Widen the column to fit the card. */
-.nova-enabled.container {
-  grid-template-columns: var(--side-col-width) var(--content-col-width) 170px;
-}
-/* Once real data renders, the conditions row can push past the padding box
-   and the right gap shrinks. Keep the content inside the padding box so the
-   right inset always matches the top inset. */
+/* Keep the card content inside its column at every width. */
 .nova-enabled .weather-widget .weather-container,
 .nova-enabled .weather-widget .weather-conditions-view,
 .nova-enabled .weather-widget .weather-info-link {
   max-width: 100% !important;
+  min-inline-size: 0;
   margin: 0 !important;
   box-sizing: border-box;
+}
+.nova-enabled .weather-widget .widget-title-bar .widget-title {
+  min-inline-size: 0;
+}
+.nova-enabled .weather-widget .widget-title-bar .widget-title h3 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nova-enabled .weather-widget .weather-conditions-view .high-low-row {
+  white-space: nowrap;
 }
 .nova-enabled .weather-widget:hover,
 .nova-enabled .weather-widget:focus-within {
   background: var(--fg-hover) !important;
   outline: none !important;
   box-shadow: none !important;
+}
+.nova-enabled .weather-widget .weather-context-menu-wrapper .weather-context-menu-button::part(button):hover,
+.nova-enabled .weather-widget .weather-context-menu-wrapper .weather-context-menu-button::part(button):focus-visible,
+.nova-enabled .weather-widget .weather-context-menu-wrapper panel-item::part(button):hover,
+.nova-enabled .weather-widget .weather-context-menu-wrapper panel-item::part(button):focus-visible {
+  background-color: var(--fg-active) !important;
 }
 .nova-enabled .weather-widget .weather-conditions-view .weather-icon-column {
   border-radius: calc(var(--fg-radius) - var(--space-small)) !important;
@@ -3796,8 +4929,6 @@ NEWTAB_TWEAKS_CSS = """
 }
 .nova-enabled .weather-widget .forecast-footer {
   inset-inline: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
   display: block !important;
   text-align: center !important;
 }
@@ -4387,6 +5518,73 @@ SB_CHROME_CSS = """
 
   :root[fg-autocollapse-tabs]:has(#tabbrowser-tabs:is([movingtab], [movingtab-group], [movingtab-addToGroup], [movingtab-ungroup])) #pinned-tabs-container[orient="vertical"]::part(items-wrapper) {
     transform: none !important;
+  }
+}
+
+/* DOM fullscreen video hides the top chrome, the tabs column and both edge
+ * sensors. The stock rule hides the toolbox and sidebar but not these custom
+ * elements. Nothing may be revealed from the top or the sides. */
+:root[inDOMFullscreen] #navigator-toolbox,
+:root[inDOMFullscreen] #fullscr-toggler,
+:root[inDOMFullscreen] #firegila-tabs-sensor,
+:root[inDOMFullscreen] #firegila-tabs-slot,
+:root[inDOMFullscreen] #vertical-tabs-container {
+  display: none !important;
+}
+
+/* The urlbar is a top-layer element, so a transform on the toolbox does not
+ * carry it. Hide it explicitly when the page is in fullscreen. */
+:root[inDOMFullscreen] #urlbar,
+:root[inDOMFullscreen] #urlbar-container,
+:root[inDOMFullscreen] #searchbar {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* F11 fullscreen makes the top chrome an overlay that auto-hides like the
+ * vertical tabs column. The page keeps the full window height. */
+:root[inFullscreen]:not([macOSNativeFullscreen]) #fullscr-toggler {
+  height: 3px;
+}
+
+:root[inFullscreen]:not([macOSNativeFullscreen]) #navigator-toolbox {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  margin-top: 0 !important;
+  transform: translateY(0);
+  transition: transform var(--fg-tabs-motion) var(--fg-ease);
+  z-index: calc(var(--browser-area-z-index-sidebar-expand-on-hover) + 1);
+  background-color: var(--toolbar-background-color);
+}
+
+:root[inFullscreen]:not([macOSNativeFullscreen]) #navigator-toolbox[fg-navbar-hidden] {
+  transform: translateY(-100%);
+}
+
+/* Keep the urlbar on the same motion as the toolbox. It lives in the top
+ * layer, so the toolbox transform does not reach it. */
+:root[inFullscreen]:not([macOSNativeFullscreen]) #urlbar {
+  transition: transform var(--fg-tabs-motion) var(--fg-ease);
+}
+
+:root[inFullscreen]:not([macOSNativeFullscreen]) #navigator-toolbox[fg-navbar-hidden] #urlbar {
+  transform: translateY(
+    calc(-1 * var(--fg-fullscreen-toolbox-height))
+  ) !important;
+}
+
+/* F11 hides the main sidebar. The vertical tabs column keeps its own mode. */
+:root[inFullscreen]:not([macOSNativeFullscreen]) #sidebar-box,
+:root[inFullscreen]:not([macOSNativeFullscreen]) #sidebar-container,
+:root[inFullscreen]:not([macOSNativeFullscreen]) #sidebar-splitter,
+:root[inFullscreen]:not([macOSNativeFullscreen]) #sidebar-launcher-splitter {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[inFullscreen]:not([macOSNativeFullscreen]) #navigator-toolbox {
+    transition: none;
   }
 }
 
@@ -5094,43 +6292,6 @@ SB_BOOTSTRAP_JS = """
     "resource://gre/modules/ShortcutUtils.sys.mjs"
   );
   const SHORTCUTS_PREF = "firegila.shortcuts";
-  const COMMAND_LABELS = {
-    cmd_newNavigator: "New window",
-    cmd_newNavigatorTabNoEvent: "New tab",
-    "Browser:OpenLocation": "Focus address bar",
-    "Tools:Search": "Focus search",
-    "Browser:OpenFile": "Open file",
-    "Browser:SavePage": "Save page",
-    cmd_print: "Print",
-    cmd_close: "Close tab",
-    cmd_closeWindow: "Close window",
-    cmd_toggleMute: "Mute tab",
-    "Tools:Downloads": "Downloads",
-    "Tools:Addons": "Add-ons",
-    "Browser:Back": "Back",
-    "Browser:Forward": "Forward",
-    "Browser:Reload": "Reload",
-    "Browser:ReloadSkipCache": "Reload skipping cache",
-    "Browser:ShowAllHistory": "History",
-    "Browser:AddBookmarkAs": "Bookmark this page",
-    "Browser:ShowAllBookmarks": "Bookmarks",
-    "Browser:DuplicateTab": "Duplicate tab",
-    "firegila-cmd-copy-page-link": "Copy page link",
-    "Browser:AddTabSplitView": "Add split view",
-    "Browser:SeparateTabSplitView": "Separate split view",
-    "Browser:Stop": "Stop loading",
-    "Browser:NextTab": "Next tab",
-    "Browser:PrevTab": "Previous tab",
-    "Browser:ShowAllTabs": "List all tabs",
-    cmd_find: "Find",
-    cmd_findAgain: "Find again",
-    cmd_findPrevious: "Find previous",
-    "View:FullScreen": "Full screen",
-    "View:PageSource": "Page source",
-    "View:PageInfo": "Page info",
-    "Tools:PrivateBrowsing": "Private window",
-    "Tools:Sanitize": "Clear recent history",
-  };
   const REVEAL_DELAY = 100;
   const POINTER_RELEASE_DELAY = 80;
   const COLLAPSE_SETTLE_DELAY = 40;
@@ -5145,10 +6306,11 @@ SB_BOOTSTRAP_JS = """
   let draggingTabs = false;
   let dragHover = false;
   let shortcutDefaults = null;
+  let shortcutDefaultLabels = null;
   let tabsRestored = false;
   let pinnedColumns = 0;
   const DEFAULT_BOOKMARKS_PREF = "firegila.migration.defaultBookmarks";
-  const STRICT_TRACKING_PREF = "firegila.migration.strictTracking";
+  const STRICT_TRACKING_PREF = "firegila.migration.strictTracking.v2";
   const GPC_PREF = "firegila.migration.globalPrivacyControl";
   const STOCK_DEFAULT_BOOKMARKS = [
     ["Get Help", "https://support.mozilla.org/products/firefox"],
@@ -5368,14 +6530,17 @@ SB_BOOTSTRAP_JS = """
     migrateDefaultBookmarks();
     // user.js lands after the first window in some profiles. Run the privacy
     // defaults again once startup has settled, guarded so they run once.
+    // Profiles carry their own prefs.js and user.js. Give them time to land
+    // before the one-time privacy migration reads the category.
     window.setTimeout(() => {
       migrateStrictTracking();
       migrateGlobalPrivacyControl();
-    }, 500);
+    }, 2000);
     watchSidebarHidden();
     watchRevealEnter();
     watchRevealLeave();
     watchEdgeSensor();
+    watchFullscreen();
     watchTabsContextMenu();
     watchTabInteraction();
     patchDragStart();
@@ -5394,8 +6559,10 @@ SB_BOOTSTRAP_JS = """
   function syncAutoHide() {
     const on =
       Services.prefs.getBoolPref("sidebar.verticalTabs", false) &&
-      Services.prefs.getBoolPref(AUTO_HIDE_PREF, false) &&
-      !Services.prefs.getBoolPref(AUTO_COLLAPSE_PREF, false);
+      !inDomFullscreen() &&
+      (inBrowserFullscreen() ||
+        (Services.prefs.getBoolPref(AUTO_HIDE_PREF, false) &&
+          !Services.prefs.getBoolPref(AUTO_COLLAPSE_PREF, false)));
     document.documentElement.toggleAttribute("fg-autohide-tabs", on);
     if (!on) {
       document.documentElement.removeAttribute("fg-tabs-revealed");
@@ -5409,6 +6576,8 @@ SB_BOOTSTRAP_JS = """
   function syncAutoCollapse() {
     const on =
       Services.prefs.getBoolPref("sidebar.verticalTabs", false) &&
+      !inDomFullscreen() &&
+      !inBrowserFullscreen() &&
       Services.prefs.getBoolPref(AUTO_COLLAPSE_PREF, false);
     document.documentElement.toggleAttribute("fg-autocollapse-tabs", on);
     if (!on) {
@@ -5455,7 +6624,21 @@ SB_BOOTSTRAP_JS = """
     );
   }
 
+  function inDomFullscreen() {
+    return document.documentElement.hasAttribute("inDOMFullscreen");
+  }
+
+  function inBrowserFullscreen() {
+    return (
+      document.documentElement.hasAttribute("inFullscreen") &&
+      !inDomFullscreen()
+    );
+  }
+
   function setRevealed(on) {
+    if (on && inDomFullscreen()) {
+      return;
+    }
     clearTimeout(revealTimer);
     clearTimeout(openTimer);
     clearTimeout(collapseTimer);
@@ -5505,7 +6688,10 @@ SB_BOOTSTRAP_JS = """
   // A context menu keeps the column open even when the pointer leaves it to
   // use the menu.
   function pinContextReveal() {
-    if (!Services.prefs.getBoolPref("sidebar.verticalTabs", false)) {
+    if (
+      !Services.prefs.getBoolPref("sidebar.verticalTabs", false) ||
+      inDomFullscreen()
+    ) {
       return;
     }
     contextPins++;
@@ -5529,7 +6715,10 @@ SB_BOOTSTRAP_JS = """
   // gesture. Tab drags leave the column, so mouseleave alone would collapse
   // it mid gesture.
   function pinInteraction() {
-    if (!Services.prefs.getBoolPref("sidebar.verticalTabs", false)) {
+    if (
+      !Services.prefs.getBoolPref("sidebar.verticalTabs", false) ||
+      inDomFullscreen()
+    ) {
       return;
     }
     const root = document.documentElement;
@@ -5956,6 +7145,121 @@ SB_BOOTSTRAP_JS = """
     }
   }
 
+  const SHORTCUT_GROUPS = [
+    {
+      id: "tabs",
+      items: [
+        ["key_newNavigatorTab", "New tab"],
+        ["key_close", "Close tab"],
+        ["key_duplicateTab", "Duplicate tab"],
+        ["key_toggleMute", "Mute tab"],
+        ["key_showAllTabs", "List all tabs"],
+        ["key_addTabSplitView", "Split current tab"],
+        ["key_separateTabSplitView", "Remove split view"],
+        ["key_selectTab1", "Select tab 1"],
+        ["key_selectTab2", "Select tab 2"],
+        ["key_selectTab3", "Select tab 3"],
+        ["key_selectTab4", "Select tab 4"],
+        ["key_selectTab5", "Select tab 5"],
+        ["key_selectTab6", "Select tab 6"],
+        ["key_selectTab7", "Select tab 7"],
+        ["key_selectTab8", "Select tab 8"],
+        ["key_selectLastTab", "Select last tab"],
+      ],
+    },
+    {
+      id: "navigation",
+      items: [
+        ["focusURLBar", "Focus address bar"],
+        ["focusURLBar2", "Focus address bar"],
+        ["key_search", "Focus search"],
+        ["key_search2", "Focus search"],
+        ["goBackKb", "Back"],
+        ["goBackKb2", "Back"],
+        ["goForwardKb", "Forward"],
+        ["goForwardKb2", "Forward"],
+        ["key_reload", "Reload"],
+        ["key_reload2", "Reload"],
+        ["key_reload_skip_cache", "Reload without cache"],
+        ["key_reload_skip_cache2", "Reload without cache"],
+        ["key_stop", "Stop loading"],
+        ["goHome", "Home"],
+        ["showAllHistoryKb", "Show history"],
+        ["manBookmarkKb", "Show bookmarks"],
+        [
+          "key_restoreLastClosedTabOrWindowOrSession",
+          "Reopen closed tab",
+        ],
+        ["key_undoCloseWindow", "Reopen closed window"],
+      ],
+    },
+    {
+      id: "page",
+      items: [
+        ["addBookmarkAsKb", "Bookmark current page"],
+        ["bookmarkAllTabsKb", "Bookmark all tabs"],
+        ["key_savePage", "Save page"],
+        ["printKb", "Print"],
+        ["key_find", "Find"],
+        ["key_findAgain", "Find again"],
+        ["key_findAgain2", "Find again"],
+        ["key_findPrevious", "Find previous"],
+        ["key_findPrevious2", "Find previous"],
+        ["key_viewSource", "View page source"],
+        ["key_viewInfo", "View page info"],
+        ["key_firegilaCopyPageLink", "Copy page link"],
+        ["key_fullZoomEnlarge", "Zoom in"],
+        ["key_fullZoomReduce", "Zoom out"],
+        ["key_fullZoomReset", "Reset zoom"],
+        ["key_toggleReaderMode", "Reader view"],
+        ["key_togglePictureInPicture", "Picture-in-picture"],
+        ["key_screenshot", "Screenshot"],
+        ["key_switchTextDirection", "Switch text direction"],
+        ["key_enterFullScreen", "Full screen"],
+      ],
+    },
+    {
+      id: "tools",
+      items: [
+        ["key_openDownloads", "Downloads"],
+        ["key_openAddons", "Add-ons"],
+        ["key_privatebrowsing", "Private window"],
+        ["key_sanitize", "Clear browsing data"],
+        ["openFileKb", "Open file"],
+        ["viewBookmarksSidebarKb", "Bookmarks sidebar"],
+        ["viewOpenTabsSidebarKb", "Open tabs sidebar"],
+        ["toggleSidebarKb", "Toggle sidebar"],
+      ],
+    },
+    {
+      id: "window",
+      items: [
+        ["key_newNavigator", "New window"],
+        ["key_closeWindow", "Close window"],
+        ["key_quitApplication", "Quit"],
+      ],
+    },
+    {
+      id: "editing",
+      items: [
+        ["key_undo", "Undo"],
+        ["key_redo", "Redo"],
+        ["key_cut", "Cut"],
+        ["key_copy", "Copy"],
+        ["key_paste", "Paste"],
+        ["key_delete", "Delete"],
+        ["key_selectAll", "Select all"],
+      ],
+    },
+  ];
+
+  const SHORTCUT_KEYS = new Map();
+  for (const group of SHORTCUT_GROUPS) {
+    for (const [id, label] of group.items) {
+      SHORTCUT_KEYS.set(id, { label, category: group.id });
+    }
+  }
+
   function shortcutBinding(key) {
     return {
       key: key.getAttribute("key") || "",
@@ -5985,6 +7289,7 @@ SB_BOOTSTRAP_JS = """
       return;
     }
     shortcutDefaults = new Map();
+    shortcutDefaultLabels = new Map();
     let index = 0;
     for (const key of keyset.querySelectorAll("key")) {
       if (!key.id) {
@@ -5992,6 +7297,12 @@ SB_BOOTSTRAP_JS = """
       }
       index++;
       shortcutDefaults.set(key.id, shortcutBinding(key));
+      try {
+        shortcutDefaultLabels.set(
+          key.id,
+          ShortcutUtils.prettifyShortcut(key)
+        );
+      } catch (e) {}
     }
   }
 
@@ -6009,55 +7320,27 @@ SB_BOOTSTRAP_JS = """
     Services.prefs.setStringPref(SHORTCUTS_PREF, JSON.stringify(map));
   }
 
-  async function shortcutLabel(key) {
-    const l10nId = key.getAttribute("data-l10n-id");
-    if (l10nId && !key.getAttribute("command")) {
-      const value = await document.l10n
-        .formatValue(l10nId)
-        .catch(() => "");
-      if (value) {
-        return value;
-      }
-    }
-    const command = key.getAttribute("command") || "";
-    if (command) {
-      if (COMMAND_LABELS[command]) {
-        return COMMAND_LABELS[command];
-      }
-      const owner = document.querySelector(
-        `[command="${CSS.escape(command)}"][data-l10n-id]`
-      );
-      const ownerId = owner?.getAttribute("data-l10n-id");
-      if (ownerId) {
-        const value = await document.l10n
-          .formatValue(ownerId)
-          .catch(() => "");
-        if (value) {
-          return value;
-        }
-      }
-      return command
-        .replace(/^(cmd_|Browser:|View:|Tools:)/, "")
-        .replace(/([a-z])([A-Z])/g, "$1 $2");
-    }
-    return key.id.replace(/^key[_-]?/, "").replace(/([a-z])([A-Z])/g, "$1 $2");
-  }
-
-  async function shortcutEntries() {
+  function shortcutEntries() {
     const keyset = document.getElementById("mainKeyset");
     if (!keyset) {
       return [];
     }
     const list = [];
     for (const key of keyset.querySelectorAll("key")) {
+      const entry = SHORTCUT_KEYS.get(key.id);
+      if (!entry) {
+        continue;
+      }
       let shortcut = "";
       try {
         shortcut = ShortcutUtils.prettifyShortcut(key);
       } catch (e) {}
       list.push({
         id: key.id,
-        label: await shortcutLabel(key),
+        label: entry.label,
+        category: entry.category,
         shortcut,
+        defaultShortcut: shortcutDefaultLabels?.get(key.id) || "",
         ...shortcutBinding(key),
       });
     }
@@ -6116,6 +7399,9 @@ SB_BOOTSTRAP_JS = """
     window.FiregilaShortcuts = {
       async entries() {
         return shortcutEntries();
+      },
+      categories() {
+        return SHORTCUT_GROUPS.map(group => group.id);
       },
       set(id, binding) {
         const map = readShortcuts();
@@ -6242,7 +7528,7 @@ SB_BOOTSTRAP_JS = """
     }
     sensor.addEventListener("mousemove", () => {
       const root = document.documentElement;
-      if (!root.hasAttribute("fg-autohide-tabs")) {
+      if (!root.hasAttribute("fg-autohide-tabs") || inDomFullscreen()) {
         return;
       }
       setRevealed(true);
@@ -6276,7 +7562,10 @@ SB_BOOTSTRAP_JS = """
     }
     tabs.addEventListener("mouseenter", () => {
       const root = document.documentElement;
-      if (!root.hasAttribute("fg-autocollapse-tabs")) {
+      if (
+        !root.hasAttribute("fg-autocollapse-tabs") ||
+        inDomFullscreen()
+      ) {
         return;
       }
       clearTimeout(revealTimer);
@@ -6299,6 +7588,48 @@ SB_BOOTSTRAP_JS = """
         requestCollapse();
       });
     }
+  }
+
+  // Fullscreen changes the reveal rules. F11 keeps the tabs column available
+  // through the auto-hide edge. A DOM fullscreen video hides it completely.
+  function clearTabsReveal() {
+    clearTimeout(revealTimer);
+    clearTimeout(openTimer);
+    clearTimeout(collapseTimer);
+    contextPins = 0;
+    interactionPinned = false;
+    pointerHeld = false;
+    draggingTabs = false;
+    dragHover = false;
+    pointerSerial++;
+    const root = document.documentElement;
+    root.removeAttribute("fg-tabs-context-pinned");
+    root.removeAttribute("fg-tabs-interaction-pinned");
+    root.removeAttribute("fg-tabs-reveal-pinned");
+    root.removeAttribute("fg-tab-drag-hover");
+    root.removeAttribute("fg-tabs-revealed");
+    root.removeAttribute("fg-tabs-open");
+  }
+
+  function watchFullscreen() {
+    const root = document.documentElement;
+    const update = () => {
+      syncTabsMode();
+      clearTabsReveal();
+      if (typeof FullScreen === "undefined") {
+        return;
+      }
+      if (inBrowserFullscreen()) {
+        FullScreen.hideNavToolbox(true);
+      } else if (!inDomFullscreen()) {
+        FullScreen.showNavToolbox(false);
+      }
+    };
+    new MutationObserver(update).observe(root, {
+      attributes: true,
+      attributeFilter: ["inDOMFullscreen", "inFullscreen"],
+    });
+    update();
   }
 
   // New tabs have no page to pin. The menu item is disabled and any pin from a
@@ -8265,18 +9596,7 @@ SB_WORKSPACES_JS = """
       hideOthers(activeId);
     }
     syncUI();
-    SessionStore.promiseAllWindowsRestored.then(
-      () => {
-        migrateStrictTracking();
-        migrateGlobalPrivacyControl();
-        restoreDone();
-      },
-      () => {
-        migrateStrictTracking();
-        migrateGlobalPrivacyControl();
-        restoreDone();
-      }
-    );
+    SessionStore.promiseAllWindowsRestored.then(restoreDone, restoreDone);
   }
 
   function restoreDone() {
@@ -8423,7 +9743,7 @@ DEFAULT_BOOKMARKS = """<!-- This Source Code Form is subject to the terms of the
 </html>
 """
 
-FIREGILA_SHORTCUTS_MJS = r"""/* Firegila shortcut editor. Lists every key in the main keyset and stores
+FIREGILA_SHORTCUTS_MJS = r"""/* Firegila shortcut editor. Lists common browser shortcuts and stores
  * overrides in firegila.shortcuts. */
 import { SettingGroupManager } from "chrome://browser/content/preferences/config/SettingGroupManager.mjs";
 
@@ -8527,76 +9847,204 @@ class FiregilaShortcutsList extends HTMLElement {
 
     const description = document.createElement("p");
     description.className = "firegila-shortcuts-description";
-    description.textContent = await this.message("firegila-shortcuts-description");
+    description.textContent = await this.message(
+      "firegila-shortcuts-description"
+    );
     this.append(description);
 
+    const empty = await this.message("firegila-shortcuts-empty");
+    const resetLabel = await this.message("firegila-shortcuts-reset");
+    const duplicateText = await this.message("firegila-shortcuts-duplicate");
+    const orText = await this.message("firegila-shortcuts-or");
+    const categoryLabels = {
+      tabs: await this.message("firegila-shortcuts-category-tabs"),
+      navigation: await this.message("firegila-shortcuts-category-navigation"),
+      page: await this.message("firegila-shortcuts-category-page"),
+      tools: await this.message("firegila-shortcuts-category-tools"),
+      window: await this.message("firegila-shortcuts-category-window"),
+      editing: await this.message("firegila-shortcuts-category-editing"),
+    };
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "firegila-shortcuts-toolbar";
+
+    const filter = document.createElement("moz-input-search");
+    filter.className = "firegila-shortcuts-filter";
+    filter.setAttribute("data-l10n-id", "firegila-shortcuts-filter");
+    filter.setAttribute("data-l10n-attrs", "placeholder");
+
     const resetAll = document.createElement("button");
+    resetAll.type = "button";
     resetAll.className = "firegila-shortcuts-reset-all";
     resetAll.textContent = await this.message("firegila-shortcuts-reset-all");
     resetAll.addEventListener("click", () => {
       win.FiregilaShortcuts.resetAll();
       this.build();
     });
-    this.append(resetAll);
+
+    toolbar.append(filter, resetAll);
+    this.append(toolbar);
 
     const list = document.createElement("div");
     list.className = "firegila-shortcuts-list";
-    const empty = await this.message("firegila-shortcuts-empty");
-    const resetLabel = await this.message("firegila-shortcuts-reset");
-    const duplicateText = await this.message("firegila-shortcuts-duplicate");
+    const noResults = document.createElement("p");
+    noResults.className = "firegila-shortcuts-empty";
+    noResults.textContent = await this.message("firegila-shortcuts-no-results");
+    noResults.hidden = true;
 
+    const groups = new Map();
     for (const entry of entries) {
-      const row = document.createElement("div");
-      row.className = "firegila-shortcut-row";
-
-      const label = document.createElement("span");
-      label.className = "firegila-shortcut-label";
-      label.textContent = entry.label;
-
-      const input = document.createElement("input");
-      input.className = "firegila-shortcut-input";
-      input.type = "text";
-      input.readOnly = true;
-      input.autocomplete = "off";
-      input.spellcheck = false;
-      input.value = entry.shortcut || empty;
-      input.addEventListener("focus", () => input.select());
-      input.addEventListener("keydown", event => {
-        if (
-          event.key === "Tab" &&
-          !event.ctrlKey &&
-          !event.altKey &&
-          !event.metaKey
-        ) {
-          return;
-        }
-        const binding = captureBinding(event);
-        if (!binding) {
-          return;
-        }
-        event.preventDefault();
-        event.stopPropagation();
-        const result = win.FiregilaShortcuts.set(entry.id, binding);
-        input.value = result.shortcut || empty;
-        input.classList.toggle("duplicate", !!result.duplicate);
-        input.title = result.duplicate ? duplicateText : "";
-      });
-
-      const reset = document.createElement("button");
-      reset.className = "firegila-shortcut-reset";
-      reset.textContent = resetLabel;
-      reset.addEventListener("click", () => {
-        const result = win.FiregilaShortcuts.reset(entry.id);
-        input.value = result.shortcut || empty;
-        input.classList.remove("duplicate");
-        input.title = "";
-      });
-
-      row.append(label, input, reset);
-      list.append(row);
+      let group = groups.get(entry.label);
+      if (!group) {
+        group = {
+          id: entry.label,
+          label: entry.label,
+          category: entry.category,
+          entries: [],
+        };
+        groups.set(entry.label, group);
+      } else if (
+        entry.shortcut &&
+        group.entries.some(item => item.shortcut === entry.shortcut)
+      ) {
+        continue;
+      }
+      group.entries.push(entry);
     }
 
-    this.append(list);
+    for (const group of groups.values()) {
+      if (group.entries.some(item => item.shortcut)) {
+        group.entries = group.entries.filter(item => item.shortcut);
+      }
+    }
+
+    const categories = win.FiregilaShortcuts.categories();
+    const sections = [];
+    for (const category of categories) {
+      const rows = [...groups.values()]
+        .filter(group => group.category === category)
+        .sort((a, b) => a.label.localeCompare(b.label));
+      if (!rows.length) {
+        continue;
+      }
+
+      const section = document.createElement("section");
+      section.className = "firegila-shortcuts-group";
+      const heading = document.createElement("h3");
+      heading.className = "firegila-shortcuts-group-title";
+      heading.textContent = categoryLabels[category];
+      section.append(heading);
+
+      for (const group of rows) {
+        const row = document.createElement("div");
+        row.className = "firegila-shortcut-row";
+
+        const label = document.createElement("span");
+        label.className = "firegila-shortcut-label";
+        label.textContent = group.label;
+
+        const keys = document.createElement("span");
+        keys.className = "firegila-shortcut-keys";
+        const inputs = [];
+        for (const [index, entry] of group.entries.entries()) {
+          if (index > 0) {
+            const or = document.createElement("span");
+            or.className = "firegila-shortcut-or";
+            or.textContent = orText;
+            keys.append(or);
+          }
+          const input = document.createElement("input");
+          input.className = "firegila-shortcut-input";
+          input.type = "text";
+          input.readOnly = true;
+          input.autocomplete = "off";
+          input.spellcheck = false;
+          input.dataset.shortcut = entry.shortcut || "";
+          input.value = entry.shortcut || empty;
+          input.setAttribute("aria-label", group.label);
+          input.addEventListener("focus", () => input.select());
+          inputs.push({ entry, input });
+          keys.append(input);
+        }
+
+        const reset = document.createElement("button");
+        reset.type = "button";
+        reset.className = "firegila-shortcut-reset";
+        reset.textContent = resetLabel;
+        reset.setAttribute("aria-label", `${resetLabel} ${group.label}`);
+        const modified = () =>
+          inputs.some(
+            item =>
+              (item.input.dataset.shortcut || "") !==
+              (item.entry.defaultShortcut || "")
+          );
+        reset.hidden = !modified();
+        reset.addEventListener("click", () => {
+          for (const item of inputs) {
+            win.FiregilaShortcuts.reset(item.entry.id);
+          }
+          this.build();
+        });
+
+        for (const item of inputs) {
+          item.input.addEventListener("keydown", event => {
+            if (
+              event.key === "Tab" &&
+              !event.ctrlKey &&
+              !event.altKey &&
+              !event.metaKey
+            ) {
+              return;
+            }
+            const binding = captureBinding(event);
+            if (!binding) {
+              return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            const result = win.FiregilaShortcuts.set(item.entry.id, binding);
+            item.input.dataset.shortcut = result.shortcut || "";
+            item.input.value = result.shortcut || empty;
+            item.input.classList.toggle("duplicate", !!result.duplicate);
+            item.input.title = result.duplicate ? duplicateText : "";
+            reset.hidden = !modified();
+          });
+        }
+
+        row.append(label, keys, reset);
+        section.append(row);
+      }
+
+      sections.push(section);
+      list.append(section);
+    }
+
+    this.append(list, noResults);
+
+    const applyFilter = () => {
+      const query = (filter.value || "").trim().toLowerCase();
+      let visible = 0;
+      for (const section of sections) {
+        let sectionVisible = false;
+        for (const row of section.querySelectorAll(".firegila-shortcut-row")) {
+          const label =
+            row.querySelector(".firegila-shortcut-label")?.textContent || "";
+          const keys = [...row.querySelectorAll(".firegila-shortcut-input")]
+            .map(input => input.value)
+            .join(" ");
+          const match =
+            !query || `${label} ${keys}`.toLowerCase().includes(query);
+          row.hidden = !match;
+          sectionVisible = sectionVisible || match;
+        }
+        section.hidden = !sectionVisible;
+        if (sectionVisible) {
+          visible++;
+        }
+      }
+      noResults.hidden = visible > 0;
+    };
+    filter.addEventListener("input", applyFilter);
   }
 }
 
@@ -8635,11 +10083,25 @@ if (!mountShortcutList()) {
 """
 
 FIREGILA_SHORTCUTS_CSS = """
+/* The new tab page has its own customization. The legacy Home content
+ * section only shows the sponsor message in this build. */
+#homeContentsGroup {
+  display: none !important;
+}
+
+/* Recommendations are disabled by policy. Keep the rows out of the page. */
+#cfrRecommendations,
+#cfrRecommendations-features,
+[groupid="recommendations"] {
+  display: none !important;
+}
+
 .firegila-shortcuts {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-block: 4px 8px;
+  gap: 10px;
+  max-width: 760px;
+  margin-block: 4px 12px;
 }
 
 .firegila-shortcuts-description,
@@ -8648,42 +10110,98 @@ FIREGILA_SHORTCUTS_CSS = """
   color: var(--text-color-deemphasized);
 }
 
+.firegila-shortcuts-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-block: 2px 4px;
+}
+
+.firegila-shortcuts-filter {
+  flex: 1 1 auto;
+  min-width: 12em;
+}
+
 .firegila-shortcuts-reset-all {
-  align-self: start;
+  flex: 0 0 auto;
+  appearance: none;
+  padding: 5px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small);
+  background: var(--button-background-color);
+  color: var(--text-color);
   font: inherit;
+  cursor: pointer;
+}
+
+.firegila-shortcuts-reset-all:hover {
+  background: var(--button-background-color-hover);
 }
 
 .firegila-shortcuts-list {
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--border-color);
+  gap: 18px;
+}
+
+.firegila-shortcuts-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.firegila-shortcuts-group-title {
+  margin: 0 0 4px;
+  color: var(--text-color);
+  font-size: 1em;
+  font-weight: 600;
 }
 
 .firegila-shortcut-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(12em, 18em) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 8px;
-  padding-block: 6px;
+  gap: 12px;
+  min-height: 34px;
+  padding-block: 4px;
   border-bottom: 1px solid var(--border-color);
+}
+
+.firegila-shortcuts-group .firegila-shortcut-row:last-child {
+  border-bottom: 0;
 }
 
 .firegila-shortcut-label {
   min-width: 0;
   overflow: hidden;
+  color: var(--text-color);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.firegila-shortcut-keys {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.firegila-shortcut-or {
+  color: var(--text-color-deemphasized);
+  font-size: 0.9em;
+}
+
 .firegila-shortcut-input {
   box-sizing: border-box;
-  width: 100%;
-  padding: 4px 8px;
+  inline-size: 9.5em;
+  padding: 3px 8px;
   border: 1px solid var(--border-color);
   border-radius: 4px;
   background-color: var(--background-color-box);
   color: var(--text-color);
   font: inherit;
+  font-size: 0.95em;
   text-align: center;
 }
 
@@ -8697,9 +10215,592 @@ FIREGILA_SHORTCUTS_CSS = """
 }
 
 .firegila-shortcut-reset {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--link-color);
   font: inherit;
+  cursor: pointer;
+}
+
+.firegila-shortcut-reset:hover {
+  text-decoration: underline;
+}
+
+.firegila-shortcut-reset[hidden] {
+  display: none;
+}
+
+.firegila-shortcuts-empty {
+  margin: 8px 0;
+  color: var(--text-color-deemphasized);
 }
 """
+
+SB_BOOKMARKS_JS = """
+// Bookmarks. One visible Bookmarks folder, one flat Shortcuts folder, and
+// the New Tab pinned cache kept in step with the Shortcuts folder.
+(function () {
+  const CONTAINER_PREF = "firegila.bookmarks.container";
+  const BOOKMARKS_PREF = "firegila.bookmarks.folder";
+  const SHORTCUTS_PREF = "firegila.bookmarks.shortcuts";
+  const MIGRATION_PREF = "firegila.migration.bookmarks.v1";
+  const PINNED_PREF = "browser.newtabpage.pinned";
+  const SHORTCUTS_CHANGED = "firegila-shortcuts-changed";
+  const BOOKMARKS_TITLE = "Bookmarks";
+  const SHORTCUTS_TITLE = "Shortcuts";
+  const CONTAINER_TITLE = "Firegila Bookmarks";
+  const { PlacesUtils } = ChromeUtils.importESModule(
+    "resource://gre/modules/PlacesUtils.sys.mjs"
+  );
+  let bookmarksGuid = "";
+  let shortcutsGuid = "";
+  let syncing = false;
+  let readyResolve;
+  const ready = new Promise(resolve => {
+    readyResolve = resolve;
+  });
+
+  function setPref(name, value) {
+    if (Services.prefs.getStringPref(name, "") !== value) {
+      Services.prefs.setStringPref(name, value);
+    }
+  }
+
+  function pinnedEntries() {
+    try {
+      const value = JSON.parse(
+        Services.prefs.getStringPref(PINNED_PREF, "[]")
+      );
+      return Array.isArray(value) ? value : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function wantedEntries() {
+    const out = [];
+    const seen = new Set();
+    for (const item of pinnedEntries()) {
+      if (!item || !item.url || seen.has(item.url)) {
+        continue;
+      }
+      seen.add(item.url);
+      out.push({
+        url: item.url,
+        title: item.label || item.title || item.url,
+      });
+    }
+    return out;
+  }
+
+  async function folderChildren(guid) {
+    const tree = await PlacesUtils.promiseBookmarksTree(guid);
+    return (tree?.children || []).map(node => ({
+      guid: node.guid,
+      title: node.title,
+      type:
+        node.type === PlacesUtils.TYPE_X_MOZ_PLACE_CONTAINER
+          ? PlacesUtils.bookmarks.TYPE_FOLDER
+          : PlacesUtils.bookmarks.TYPE_BOOKMARK,
+      url: node.uri ? Services.io.newURI(node.uri) : null,
+    }));
+  }
+
+  async function folderBookmarks(guid) {
+    return (await folderChildren(guid)).filter(
+      node =>
+        node.type === PlacesUtils.bookmarks.TYPE_BOOKMARK && node.url
+    );
+  }
+
+  async function ensureFolder(parentGuid, title) {
+    const found = (await folderChildren(parentGuid)).find(
+      node =>
+        node.type === PlacesUtils.bookmarks.TYPE_FOLDER &&
+        node.title === title
+    );
+    if (found) {
+      return found;
+    }
+    return PlacesUtils.bookmarks.insert({
+      parentGuid,
+      type: PlacesUtils.bookmarks.TYPE_FOLDER,
+      title,
+      index: PlacesUtils.bookmarks.DEFAULT_INDEX,
+    });
+  }
+
+  async function moveChildren(fromGuid, toGuid, skipGuid) {
+    for (const node of await folderChildren(fromGuid)) {
+      if (skipGuid && node.guid === skipGuid) {
+        continue;
+      }
+      try {
+        await PlacesUtils.bookmarks.moveToFolder(
+          [node.guid],
+          toGuid,
+          PlacesUtils.bookmarks.DEFAULT_INDEX
+        );
+      } catch (e) {}
+    }
+  }
+
+  async function migrate(containerGuid) {
+    if (Services.prefs.getBoolPref(MIGRATION_PREF, false)) {
+      return;
+    }
+    const bookmarks = PlacesUtils.bookmarks;
+    await moveChildren(bookmarks.toolbarGuid, bookmarksGuid);
+    await moveChildren(bookmarks.menuGuid, bookmarksGuid);
+    await moveChildren(bookmarks.unfiledGuid, bookmarksGuid, containerGuid);
+    await moveChildren(bookmarks.mobileGuid, bookmarksGuid);
+    for (const node of await folderChildren(shortcutsGuid)) {
+      if (node.type === bookmarks.TYPE_FOLDER) {
+        await bookmarks
+          .moveToFolder([node.guid], bookmarksGuid, bookmarks.DEFAULT_INDEX)
+          .catch(() => {});
+      }
+    }
+    const existing = new Set(
+      (await folderBookmarks(shortcutsGuid)).map(node => node.url.spec)
+    );
+    for (const item of wantedEntries()) {
+      if (existing.has(item.url)) {
+        continue;
+      }
+      try {
+        await bookmarks.insert({
+          parentGuid: shortcutsGuid,
+          type: bookmarks.TYPE_BOOKMARK,
+          title: item.title,
+          url: Services.io.newURI(item.url),
+          index: bookmarks.DEFAULT_INDEX,
+        });
+        existing.add(item.url);
+      } catch (e) {}
+    }
+    Services.prefs.setBoolPref(MIGRATION_PREF, true);
+  }
+
+  async function prefFromFolder() {
+    if (syncing) {
+      return;
+    }
+    const entries = (await folderBookmarks(shortcutsGuid)).map(node => ({
+      url: node.url.spec,
+      label: node.title || node.url.spec,
+      title: node.title || node.url.spec,
+    }));
+    const next = JSON.stringify(entries);
+    if (Services.prefs.getStringPref(PINNED_PREF, "[]") === next) {
+      return;
+    }
+    syncing = true;
+    try {
+      Services.prefs.setStringPref(PINNED_PREF, next);
+      Services.obs.notifyObservers(null, SHORTCUTS_CHANGED);
+    } finally {
+      syncing = false;
+    }
+  }
+
+  async function folderFromPref() {
+    if (syncing) {
+      return;
+    }
+    const wanted = wantedEntries();
+    const bookmarks = PlacesUtils.bookmarks;
+    const current = await folderBookmarks(shortcutsGuid);
+    const wantedUrls = new Set(wanted.map(item => item.url));
+    for (const node of current) {
+      if (!wantedUrls.has(node.url.spec)) {
+        await bookmarks.remove(node.guid).catch(() => {});
+      }
+    }
+    const byUrl = new Map(current.map(node => [node.url.spec, node]));
+    for (const item of wanted) {
+      const node = byUrl.get(item.url);
+      if (!node) {
+        try {
+          await bookmarks.insert({
+            parentGuid: shortcutsGuid,
+            type: bookmarks.TYPE_BOOKMARK,
+            title: item.title,
+            url: Services.io.newURI(item.url),
+            index: bookmarks.DEFAULT_INDEX,
+          });
+        } catch (e) {}
+      } else if ((node.title || "") !== item.title) {
+        await bookmarks
+          .update({ guid: node.guid, title: item.title })
+          .catch(() => {});
+      }
+    }
+    const after = await folderBookmarks(shortcutsGuid);
+    const finalByUrl = new Map(after.map(node => [node.url.spec, node]));
+    for (let index = 0; index < wanted.length; index++) {
+      const node = finalByUrl.get(wanted[index].url);
+      if (node) {
+        await bookmarks
+          .moveToFolder([node.guid], shortcutsGuid, index)
+          .catch(() => {});
+      }
+    }
+  }
+
+  let folderTimer = 0;
+  let prefTimer = 0;
+  const folderEvent = () => {
+    clearTimeout(folderTimer);
+    folderTimer = setTimeout(() => {
+      prefFromFolder().catch(console.error);
+    }, 80);
+  };
+  const prefEvent = () => {
+    clearTimeout(prefTimer);
+    prefTimer = setTimeout(() => {
+      folderFromPref().catch(console.error);
+    }, 80);
+  };
+  const placesEvents = events => {
+    for (const event of events) {
+      if (
+        (event.type === "bookmark-added" ||
+          event.type === "bookmark-moved") &&
+        event.parentGuid === shortcutsGuid &&
+        event.itemType === PlacesUtils.bookmarks.TYPE_FOLDER
+      ) {
+        PlacesUtils.bookmarks
+          .moveToFolder(
+            [event.guid],
+            bookmarksGuid,
+            PlacesUtils.bookmarks.DEFAULT_INDEX
+          )
+          .catch(console.error);
+      }
+    }
+    folderEvent();
+  };
+
+  async function init() {
+    const container = await ensureFolder(
+      PlacesUtils.bookmarks.unfiledGuid,
+      CONTAINER_TITLE
+    );
+    const bookmarks = await ensureFolder(container.guid, BOOKMARKS_TITLE);
+    const shortcuts = await ensureFolder(container.guid, SHORTCUTS_TITLE);
+    bookmarksGuid = bookmarks.guid;
+    shortcutsGuid = shortcuts.guid;
+    setPref(CONTAINER_PREF, container.guid);
+    setPref(BOOKMARKS_PREF, bookmarksGuid);
+    setPref(SHORTCUTS_PREF, shortcutsGuid);
+    await migrate(container.guid);
+    await prefFromFolder();
+    PlacesUtils.observers.addListener(
+      [
+        "bookmark-added",
+        "bookmark-removed",
+        "bookmark-moved",
+        "bookmark-title-changed",
+        "bookmark-url-changed",
+      ],
+      placesEvents
+    );
+    Services.prefs.addObserver(PINNED_PREF, prefEvent);
+    readyResolve();
+  }
+
+  window.FiregilaBookmarks = {
+    ready,
+    get bookmarksGuid() {
+      return bookmarksGuid;
+    },
+    get shortcutsGuid() {
+      return shortcutsGuid;
+    },
+    async openFolder(which) {
+      await ready;
+      PlacesCommandHook.showPlacesOrganizer(
+        which === "shortcuts" ? shortcutsGuid : bookmarksGuid
+      );
+    },
+  };
+
+  document.addEventListener(
+    "command",
+    event => {
+      if (event.target.id === "panelMenu_bookmarksFolder") {
+        window.FiregilaBookmarks.openFolder("bookmarks");
+      } else if (event.target.id === "panelMenu_shortcutsFolder") {
+        window.FiregilaBookmarks.openFolder("shortcuts");
+      } else if (event.target.id === "firegilaBookmarksMenuFolder") {
+        window.FiregilaBookmarks.openFolder("bookmarks");
+      } else if (event.target.id === "firegilaShortcutsMenuFolder") {
+        window.FiregilaBookmarks.openFolder("shortcuts");
+      }
+    },
+    true
+  );
+
+  function startBookmarks() {
+    init().catch(error => {
+      console.error("Firegila bookmarks:", error);
+      readyResolve();
+    });
+  }
+
+  if (document.readyState === "complete") {
+    window.setTimeout(startBookmarks, 1000);
+  } else {
+    window.addEventListener(
+      "load",
+      () => window.setTimeout(startBookmarks, 1000),
+      { once: true }
+    );
+  }
+})();
+"""
+
+FIREGILA_APP_JS = """
+// Firegila app window install entry.
+window.FiregilaInstallApp = async function () {
+  const { TaskbarTabs } = ChromeUtils.importESModule(
+    "resource:///modules/taskbartabs/TaskbarTabs.sys.mjs"
+  );
+  try {
+    await TaskbarTabs.moveTabIntoTaskbarTab(gBrowser.selectedTab);
+  } catch (e) {
+    console.error("Firegila: app window install failed", e);
+  }
+};
+
+window.addEventListener("load", () => {
+  const command = document.getElementById("firegila-install-app");
+  const button = document.getElementById("taskbar-tabs-button");
+  const popup = document.getElementById("appMenu-popup");
+  if (!command) {
+    return;
+  }
+  command.addEventListener("command", () => {
+    window.FiregilaInstallApp();
+  });
+  const update = () => {
+    const item = document.getElementById("appMenu-install-app");
+    if (!item) {
+      return;
+    }
+    item.hidden =
+      document.documentElement.hasAttribute("taskbartab") ||
+      !button ||
+      button.hidden;
+  };
+  // The app menu view is a template until the panel opens.
+  popup?.addEventListener("popupshowing", () => window.setTimeout(update, 50));
+  popup?.addEventListener("popupshown", update);
+  update();
+});
+"""
+
+BOOKMARK_CONTEXT_CSS = """
+#placesContext_cut,
+#placesContext_copy,
+#placesContext_paste_group,
+#placesContext_paste,
+#placesContext_new\\:separator {
+  display: none !important;
+}
+"""
+
+BOOKMARK_MENU_HIDE_CSS = """
+#bookmarksToolbarFolderMenu,
+#menu_unsortedBookmarks,
+#menu_mobileBookmarks,
+#bookmarksToolbarSeparator,
+#PersonalToolbar {
+  display: none !important;
+}
+"""
+
+
+BOOKMARK_UI_CSS = """
+/* Folder creation stays in the library. The save panel only picks a folder. */
+#editBookmarkPanel #editBMPanel_newFolderBox {
+  display: none !important;
+}
+
+/* Keep the selected folder highlight, but not the dotted focus ring. */
+treechildren::-moz-tree-row(selected, current, focus),
+treechildren::-moz-tree-row(current, focus) {
+  outline: none !important;
+}
+"""
+
+
+COMPACT_APP_CSS = """
+/* Firegila compact app window. Taskbar Tabs hides the tab strip. Keep the
+ * identity chip and the app action, hide the URL text until Ctrl+L. The title
+ * is centered over the whole nav bar, not over the free space after the
+ * identity chip. */
+:root[taskbartab][firegila-compact-app] #urlbar-container,
+:root[taskbartab][firegila-compact-app] #urlbar {
+  --urlbar-container-min-width: 0;
+  min-width: 0;
+}
+
+:root[taskbartab][firegila-compact-app] #urlbar-container {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 128px;
+  margin-inline: 8px;
+}
+
+:root[taskbartab][firegila-compact-app] #firegila-app-toolbar-space {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+:root[taskbartab][firegila-compact-app][firegila-urlbar="open"] #firegila-app-toolbar-space {
+  display: none;
+}
+
+:root[taskbartab][firegila-compact-app] #customizableui-special-spring1 {
+  display: none !important;
+}
+
+:root[taskbartab][firegila-compact-app] #customizableui-special-spring2 {
+  display: none !important;
+}
+
+:root[taskbartab][firegila-compact-app] #downloads-button,
+:root[taskbartab][firegila-compact-app] #ublock0_raymondhill_net-browser-action,
+:root[taskbartab][firegila-compact-app] #unified-extensions-button {
+  margin-inline-start: auto;
+}
+
+:root[taskbartab][firegila-compact-app]:not([firegila-urlbar="open"]) #urlbar,
+:root[taskbartab][firegila-compact-app]:not([firegila-urlbar="open"]) #urlbar-background {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+:root[taskbartab][firegila-compact-app] #unified-extensions-button {
+  display: none !important;
+}
+
+:root[taskbartab][firegila-compact-app] .titlebar-spacer[type="post-tabs"] {
+  display: none !important;
+}
+
+:root[taskbartab][firegila-compact-app] #urlbar-input,
+:root[taskbartab][firegila-compact-app] #urlbar-go-button,
+:root[taskbartab][firegila-compact-app] #urlbar-searchmode-switcher,
+:root[taskbartab][firegila-compact-app] #page-action-buttons > :not(#taskbar-tabs-button) {
+  display: none !important;
+}
+
+:root[taskbartab][firegila-compact-app] #home-button,
+:root[taskbartab][firegila-compact-app] #sidebar-button,
+:root[taskbartab][firegila-compact-app] #save-page-button,
+:root[taskbartab][firegila-compact-app] #print-button,
+:root[taskbartab][firegila-compact-app] #find-button,
+:root[taskbartab][firegila-compact-app] #zoom-controls,
+:root[taskbartab][firegila-compact-app] #edit-controls,
+:root[taskbartab][firegila-compact-app] #characterencoding-button,
+:root[taskbartab][firegila-compact-app] #email-link-button,
+:root[taskbartab][firegila-compact-app] #screenshot-button,
+:root[taskbartab][firegila-compact-app] #fullscreen-button,
+:root[taskbartab][firegila-compact-app] #nav-bar-overflow-button {
+  display: none !important;
+}
+
+:root[taskbartab][firegila-compact-app][firegila-urlbar="open"] #urlbar-container {
+  flex: 1 1 auto;
+  max-width: none;
+}
+
+:root[taskbartab][firegila-compact-app][firegila-urlbar="open"] #urlbar-input,
+:root[taskbartab][firegila-compact-app][firegila-urlbar="open"] #urlbar-go-button,
+:root[taskbartab][firegila-compact-app][firegila-urlbar="open"] #urlbar-searchmode-switcher,
+:root[taskbartab][firegila-compact-app][firegila-urlbar="open"] #page-action-buttons > :not(#taskbar-tabs-button) {
+  display: revert !important;
+}
+"""
+
+ROOT_EDITS = {
+    "moz-src/browser/components/places/PlacesUIUtils.sys.mjs": [
+        ("""export var PlacesUIUtils = {
+""",
+         """function isFiregilaRoot(guid) {
+  return (
+    !!guid &&
+    (guid === Services.prefs.getStringPref("firegila.bookmarks.folder", "") ||
+      guid === Services.prefs.getStringPref("firegila.bookmarks.shortcuts", ""))
+  );
+}
+
+export var PlacesUIUtils = {
+"""),
+        ("""  canUserRemove(aNode) {
+    let parentNode = aNode.parent;
+""",
+         """  canUserRemove(aNode) {
+    if (isFiregilaRoot(aNode.bookmarkGuid)) {
+      return false;
+    }
+    let parentNode = aNode.parent;
+"""),
+        ("""function canMoveUnwrappedNode(unwrappedNode) {
+  if (
+    (unwrappedNode.concreteGuid &&
+      lazy.PlacesUtils.isRootItem(unwrappedNode.concreteGuid)) ||
+    (unwrappedNode.guid && lazy.PlacesUtils.isRootItem(unwrappedNode.guid))
+  ) {
+    return false;
+  }
+""",
+         """function canMoveUnwrappedNode(unwrappedNode) {
+  if (
+    isFiregilaRoot(unwrappedNode.concreteGuid) ||
+    isFiregilaRoot(unwrappedNode.guid)
+  ) {
+    return false;
+  }
+  if (
+    (unwrappedNode.concreteGuid &&
+      lazy.PlacesUtils.isRootItem(unwrappedNode.concreteGuid)) ||
+    (unwrappedNode.guid && lazy.PlacesUtils.isRootItem(unwrappedNode.guid))
+  ) {
+    return false;
+  }
+"""),
+        ("""function getTransactionsForTransferItems(
+  items,
+  insertionIndex,
+  insertionParentGuid,
+  doMove
+) {
+  let canMove = true;
+  for (let item of items) {
+    if (!PlacesUIUtils.SUPPORTED_FLAVORS.includes(item.type)) {
+""",
+         """function getTransactionsForTransferItems(
+  items,
+  insertionIndex,
+  insertionParentGuid,
+  doMove
+) {
+  let canMove = true;
+  for (let item of items) {
+    if (isFiregilaRoot(item.itemGuid)) {
+      return [];
+    }
+    if (!PlacesUIUtils.SUPPORTED_FLAVORS.includes(item.type)) {
+"""),
+    ],
+}
 
 patch_jar(BUILD / "browser/omni.ja", BROWSER_EDITS, REMOVE_DIRS_BROWSER, ART_SVG_BROWSER, sweep=True,
           appends=[(f, NEWTAB_CSS) for f in NEWTAB_CSS_FILES] + [
@@ -8713,14 +10814,27 @@ patch_jar(BUILD / "browser/omni.ja", BROWSER_EDITS, REMOVE_DIRS_BROWSER, ART_SVG
                    ("chrome/browser/content/browser/sidebar/sidebar.css", SIDEBAR_PAGE_CSS),
                    ("chrome/browser/skin/classic/browser/tabbrowser/content-area.css", CONTENT_AREA_CSS),
                    ("chrome/browser/skin/classic/browser/sidebar.css", SB_CHROME_CSS),
-                   ("localization/en-US/browser/browserSets.ftl", "\nfiregila-copy-page-link = Copy Page Link\n"),
                    ("localization/en-US/browser/browserContext.ftl", "\nfiregila-context-copy-page-link =\n  .label = Copy Page Link\n  .accesskey = L\n"),
-                   ("localization/en-US/browser/preferences/preferences.ftl", "\nfiregila-shortcuts-section = Shortcuts\nfiregila-shortcuts-heading = Keyboard shortcuts\nfiregila-shortcuts-description = Every shortcut in the browser. Select a field and press a new combination.\nfiregila-shortcuts-change = Change\nfiregila-shortcuts-reset = Reset\nfiregila-shortcuts-reset-all = Reset all shortcuts\nfiregila-shortcuts-empty = Not set\nfiregila-shortcuts-duplicate = Already used by another command.\nfiregila-shortcuts-loading = Loading shortcuts...\nfiregila-shortcuts-no-window = Open a browser window to edit shortcuts.\n"),
+                   ("localization/en-US/browser/appmenu.ftl", "\nappmenuitem-install-app =\n    .label = Install this site as an app\n"),
+                   ("localization/en-US/browser/browser.ftl", "\nfiregila-bookmarks-folder =\n    .label = Bookmarks\nfiregila-shortcuts-folder =\n    .label = Shortcuts\n"),
+                   ("localization/en-US/browser/newtab/newtab.ftl", "\nnewtab-menu-delete-shortcut = Delete shortcut\n"),
+                   ("localization/en-US/browser/preferences/preferences.ftl", "\nfiregila-shortcuts-section = Shortcuts\n    .heading = Shortcuts\nfiregila-shortcuts-heading = Keyboard shortcuts\nfiregila-shortcuts-description = Common shortcuts. Select a field and press a new combination.\nfiregila-shortcuts-reset = Reset\nfiregila-shortcuts-reset-all = Reset all shortcuts\nfiregila-shortcuts-empty = No shortcut\nfiregila-shortcuts-duplicate = Already used by another shortcut.\nfiregila-shortcuts-loading = Loading shortcuts...\nfiregila-shortcuts-no-window = Open a browser window to edit shortcuts.\nfiregila-shortcuts-filter =\n    .placeholder = Filter shortcuts\nfiregila-shortcuts-category-tabs = Tabs\nfiregila-shortcuts-category-navigation = Navigation\nfiregila-shortcuts-category-page = Page\nfiregila-shortcuts-category-tools = Tools\nfiregila-shortcuts-category-window = Window\nfiregila-shortcuts-category-editing = Editing\nfiregila-shortcuts-no-results = No shortcuts match.\nfiregila-shortcuts-or = or\nperformance-allow-vaapi =\n    .label = Use hardware video decoding (VA-API)\n    .description = Requires a supported GPU driver. Restart required.\nfiregila-data-kept =\n    .message = Firegila keeps cookies, history, tabs and passwords. Nothing is cleared on exit.\n"),
+                   ("chrome/browser/content/browser/browser.js", FIREGILA_APP_JS),
+                   ("chrome/browser/skin/classic/browser/browser-shared.css", COMPACT_APP_CSS),
+                   ("chrome/browser/skin/classic/browser/browser-shared.css", BOOKMARK_CONTEXT_CSS),
+                   ("chrome/browser/skin/classic/browser/browser-shared.css", BOOKMARK_MENU_HIDE_CSS),
+                   ("chrome/browser/skin/classic/browser/browser-shared.css", BOOKMARK_UI_CSS),
+                   ("chrome/browser/content/browser/places/places.css", BOOKMARK_UI_CSS),
+                   ("chrome/browser/skin/classic/browser/places/sidebar.css", BOOKMARK_UI_CSS),
+                   ("chrome/browser/content/browser/places/places.css", BOOKMARK_CONTEXT_CSS),
                    ("chrome/browser/content/browser/sidebar/sidebar-main.css", SB_MAIN_CSS),
                    ("chrome/browser/skin/classic/browser/preferences/preferences.css", FIREGILA_SHORTCUTS_CSS),
                    ("chrome/browser/content/browser/sidebar/browser-sidebar.js", SB_BOOTSTRAP_JS),
                    ("chrome/browser/content/browser/sidebar/browser-sidebar.js", SB_ANIM_JS),
                    ("chrome/browser/content/browser/sidebar/browser-sidebar.js", SB_WEBPANELS_JS),
-                   ("chrome/browser/content/browser/sidebar/browser-sidebar.js", SB_WORKSPACES_JS)],
+                   ("chrome/browser/content/browser/sidebar/browser-sidebar.js", SB_WORKSPACES_JS),
+                   ("chrome/browser/content/browser/sidebar/browser-sidebar.js", SB_BOOKMARKS_JS)],
           overwrites=[("chrome/browser/content/browser/default-bookmarks.html", DEFAULT_BOOKMARKS),
                       ("chrome/browser/content/browser/preferences/config/firegila-shortcuts.mjs", FIREGILA_SHORTCUTS_MJS)])
+
+patch_jar(BUILD / "omni.ja", ROOT_EDITS)

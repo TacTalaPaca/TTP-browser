@@ -5,6 +5,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 VERSION="$(tr -d ' \n' < "$ROOT/VERSION")"
 
+"$ROOT/scripts/check-persistence.sh"
+
 fail=0
 
 check_ignored() {

@@ -19,7 +19,7 @@
 
     "AIControls": {
       "Default": { "Value": "blocked", "Locked": true },
-      "Translations": { "Value": "blocked", "Locked": true },
+      "Translations": { "Value": "available", "Locked": false },
       "PDFAltText": { "Value": "blocked", "Locked": true },
       "SmartTabGroups": { "Value": "blocked", "Locked": true },
       "LinkPreviewKeyPoints": { "Value": "blocked", "Locked": true },

@@ -22,7 +22,10 @@ sed -i 's/^RemotingName=.*/RemotingName=firegila-esr/' "$INI"
 grep -E '^(Vendor|Name|RemotingName)=' "$INI"
 
 # distribution identity and policies
-cp "$ROOT/configs/distribution.ini" "$BUILD/distribution/distribution.ini"
+sed "s/@PRODUCT@/$PRODUCT/g" "$ROOT/configs/distribution.ini" \
+  > "$BUILD/distribution/distribution.ini"
+grep -q "@PRODUCT@" "$BUILD/distribution/distribution.ini" \
+  && { echo "customize: version placeholder left in distribution.ini"; exit 1; }
 cp "$ROOT/configs/policies.json" "$BUILD/distribution/policies.json"
 python3 -c "import json;json.load(open('$BUILD/distribution/policies.json'));print('policies.json: valid JSON')"
 

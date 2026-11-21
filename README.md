@@ -82,7 +82,7 @@ changes are overlays on the unpacked tarball, applied by
 - Ships its own `.desktop` entry and launcher. Default profile is
   `$HOME/.firegila`. The launcher never deletes profiles.
 - `firegila.version` records the Firegila release. `firegila.build` records the
-  base ESR (`153.5.1esr`).
+  base ESR (`153.7.0esr`).
 
 ### Sidebar
 
@@ -180,14 +180,18 @@ changes are overlays on the unpacked tarball, applied by
 
 ### New tab
 
-- Shortcuts grid is manual only. No history fill, no sponsored tiles, no
-  default sites. Add, edit, drag and remove work as stock. Eight per row,
-  centered, fluid width between 300px and 720px.
+- Shortcuts grid comes from the Shortcuts bookmark folder. No history fill,
+  no sponsored tiles, no default sites. Add and drag write to the folder.
+  Eight per row, centered, fluid width between 300px and 720px.
+- Shortcut menu has Open in New Window, Open in New Private Window and Delete
+  shortcut. No pin, unpin, edit, dismiss or history deletion. The pin badge is
+  gone.
 - Search bar is fluid between the same bounds instead of stepping at layout
   breakpoints. The tabs grid underneath keeps its fixed columns.
 - Logo stays centered at any row count. All slots stay visible, so the add
-  tile is never hidden on narrow windows. Weather widget on with explicit
-  endpoints. No stories, highlights or shopping content.
+  tile is never hidden on narrow windows. Weather widget is off by default and
+  opt-in from the customize menu. The card fills the stock right column and
+  keeps a stable height. No stories, highlights or shopping content.
 - The plain new tab shows a subtle topography pattern in the divider color.
   A wallpaper replaces it.
 - Wallpapers offer only the custom upload from the PC. The stock Firefox
@@ -195,12 +199,12 @@ changes are overlays on the unpacked tarball, applied by
   scrollable grid inside the Wallpapers panel. Up to 100 are kept, and a new
   upload drops the oldest. Removing the active wallpaper switches to the next
   one; the Wallpapers toggle turns off only when none are left.
-- Add and edit shortcut dialogs fade and scale in on open and out on close.
+- The add shortcut dialog fades and scales in on open and out on close.
 - Settings loses the sponsored shortcuts, sponsored stories, support promo
   and recent activity sections.
-- Default bookmarks ship empty, so new profiles start clean. Profiles made
-  before 0.1.1 lose the four stock Mozilla defaults once on first start;
-  user bookmarks are left alone. Added bookmarks suggest and sync normally.
+- Default bookmarks ship empty, so new profiles start clean. Stock Mozilla
+  defaults are removed once. User bookmarks are moved into the Bookmarks
+  folder.
 
 ### Theme
 
@@ -238,12 +242,69 @@ changes are overlays on the unpacked tarball, applied by
   switches workspaces. Middle click starts autoscroll. All on by default.
 - Dragging a tab shows Split view and New window drop targets. Drop on either
   to split the tab with its nearest tab or move it to a new window.
-- Settings > Shortcuts lists every main browser shortcut. Each one can be
-  rebound or reset, and the choice is stored per profile.
+- Settings > Shortcuts lists common browser shortcuts by category, with a
+  filter and a reset for each entry. Each one can be rebound, and the choice
+  is stored per profile.
 - Copy Page Link sits in the page context menu and on Ctrl+Shift+L.
 - Session restore is on by default. The next start reopens the same windows
   and tabs, including tabs hidden in other workspaces, and loads them all.
   Users can still choose a fresh start in settings.
+
+### App windows
+
+- Firefox Taskbar Tabs is enabled on Linux. The URL bar page action and the
+  hamburger menu install the current site as an app window.
+- The app window reads the site manifest for the name and icon, opens one tab,
+  hides the tab strip, and uses `display-mode: minimal-ui`.
+- Compact chrome hides the URL text and keeps the identity chip. Ctrl+L shows
+  the full address bar. Escape or clicking the page collapses it again.
+- Back, forward and reload sit together. The identity chip follows them. The
+  toolbar has no page title. Extensions, the menu and the window controls
+  group on the right.
+- App windows use the same profile, so cookies, history, logins, tabs and
+  workspaces stay. Uninstalling an app removes the desktop entry and registry
+  entry only. Site data is not touched.
+- The desktop entry is named `firegila.webapp-*` and sets `StartupWMClass` so
+  the taskbar matches the app icon.
+
+### Fullscreen
+
+- F11 hides the sidebar. The toolbar and vertical tabs become overlays that
+  slide away with the same motion.
+- The toolbar auto-hides and reveals at the top. It does not push the page.
+- Vertical tabs switch to auto-hide for the duration of F11. The previous tabs
+  mode returns on exit.
+- A page fullscreen video hides the toolbar, sidebar and tabs column. Top and
+  edge reveals stay off until the page leaves fullscreen.
+
+### Bookmarks
+
+- Two folders only: Bookmarks and Shortcuts. Bookmarks Toolbar, Bookmarks
+  Menu, Other Bookmarks and Mobile Bookmarks are hidden.
+- Bookmarks can hold folders and subfolders. Shortcuts is a flat list and
+  cannot hold folders.
+- Both folders appear in the save panel, bookmark sidebar, bookmarks menu
+  panel, library and Alt Bookmarks menu. The Bookmarks Toolbar is removed
+  completely.
+- Existing user bookmarks move into Bookmarks once. Pinned New Tab entries
+  move into Shortcuts once. Nothing is deleted.
+- Saving a bookmark to Shortcuts adds a New Tab shortcut. Deleting the
+  shortcut removes the bookmark only. History stays.
+- The save panel folder picker lists Bookmarks subfolders. New Folder stays in
+  the library. Shortcuts has no expander and no empty folder area.
+- Bookmark menus drop Cut, Copy, Paste and Add Separator. Add actions target
+  the selected folder. The two roots cannot be renamed, deleted or moved.
+- The shortcut grid, the sidebar and the library stay in sync through one
+  bookmark sync layer.
+
+### Settings
+
+- Classic settings layout, so every pane is complete and the Home pane is not
+  empty.
+- The Shortcuts page groups shortcuts by category, has a filter, and shows a
+  reset only for changed shortcuts.
+- The data promise sits in General > Startup.
+- VA-API is an opt-in row under Performance.
 
 ### Privacy, AI and content defaults
 
@@ -254,13 +315,24 @@ changes are overlays on the unpacked tarball, applied by
   recommendations off. Firefox Home keeps top sites only, no sponsored rows.
   QuickSuggest on and off both locked off.
 - Generative AI, chat, page assist, smart tab groups, link previews and the AI
-  settings section off, locked by policy.
+  settings section off, locked by policy. Local translations stay on. They run
+  on device and send nothing to a server.
 - Containers are off and locked. No menu entry, no settings page and no
   creation path.
 - HTTPS only mode on, query stripping on. First run and post update pages
   blank. Onboarding and feature recommendations skipped.
-- Strict tracking protection by default. Tell sites not to sell or share data
-  is on by default.
+- Strict tracking protection by default and marked Strict (default) in
+  settings. Existing Standard profiles move once to Strict. Tell sites not to
+  sell or share data is on by default.
+- DRM is on by default. Widevine downloads on first play. The stock General
+  checkbox can turn it off.
+- Cookie banners reject optional cookies in normal and private windows.
+  Audible autoplay is blocked. Payment method autofill is off, address
+  autofill stays available. TLS 0-RTT is off.
+- Hardware video decoding (VA-API) is an opt-in under Performance. Off by
+  default, restart required. It needs a supported GPU driver.
+- Clear-on-shutdown categories are off, including the v2 prefs. The master
+  switch is off as well. Cookies, history, tabs and passwords stay.
 - Updates off, Mozilla builds would replace this package.
 - Search: DuckDuckGo default, Ecosia added, Bing, Wikipedia and Perplexity
   removed.
