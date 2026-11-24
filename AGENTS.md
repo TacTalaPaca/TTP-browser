@@ -15,11 +15,12 @@
 ## 2. Scope
 
 - Linux x86_64 only. No Windows, no macOS, no Android, no iOS.
+- The product name is Firegila in text. The public repository is `TTP-browser`. Paths, packages and commands stay lowercase.
 - Binary repackage of Firefox ESR. No source build.
 - `VERSION` is the Firegila release. `ESR_VERSION` is the Firefox base. Keep them separate.
 - Keep the browser usable. Cookies, history, passwords and bookmarks persist. Nothing is cleared on exit.
 - Do not delete user data. A migration may remove exact stock values and nothing else.
-- Changes go in `configs/`, `branding/`, `scripts/` and `packaging/`. `patches/` stays empty until a source build exists.
+- Changes go in `configs/`, `assets/`, `scripts/` and `packaging/`. `patches/` stays empty until a source build exists.
 
 ## 3. Layout
 
@@ -28,15 +29,19 @@ VERSION              Firegila release
 ESR_VERSION          Firefox base
 CHANGELOG.md         release history
 configs/             prefs, policies, autoconfig, distribution
-branding/            desktop entry and launcher
+assets/              desktop entry, launcher, newtab pattern, uBlock
 scripts/             fetch, customize, patch, package, install, check
-scripts/packages/    one script per package format
-packaging/           deb, rpm, arch, appimage and metainfo templates
-extensions/          bundled uBlock Origin
-app-icons/           icon masters
+scripts/packages/    executable build driver per package format
+packaging/           declarative package templates and metadata
+packaging/common/    shared metadata for every format
+packaging/deb/       Debian template
+packaging/rpm/       RPM spec template
+packaging/arch/      Arch PKGBUILD template
+packaging/appimage/  AppImage template and pinned tool
+assets/icons/        icon masters
 dev                  fresh profile launcher, never shipped
 build/               generated tree, ignored
-packages/<version>/  generated packages, ignored
+dist/                generated packages, ignored
 sources/             upstream tarball, ignored
 ```
 
@@ -52,7 +57,7 @@ sources/             upstream tarball, ignored
 ./dev --build               rebuild, then run fresh
 ./scripts/package.sh        build every format
 ./scripts/package.sh deb    build only the named formats
-./scripts/install.sh packages/<version>/firegila-<version>-linux-x86_64.tar.xz
+./scripts/install.sh dist/firegila-<version>-linux-x86_64.tar.xz
 ```
 
 - Run `./scripts/check-commit.sh` before every commit.
@@ -87,9 +92,9 @@ sources/             upstream tarball, ignored
 - `ESR_VERSION` is the Firefox base. The two files move separately.
 - `CHANGELOG.md` gets an entry for every version.
 - `customize.sh` writes `firegila.version` and `firegila.build`.
-- Build packages into `packages/<version>/` and keep old folders.
-- Existing 0.x package folders are kept. Do not rebuild or delete them.
-- Rebuild packages after the final commit so `BUILDINFO` records the current commit.
+- Build packages into `dist/`. Only the latest set stays in the repository.
+- Before building a new version, the previous `dist/` must already be archived in `TTP-pkgs/pkgs/firegila/<version>/`.
+- Build packages only from a committed tree.
 - Tag releases as `v<version>`. Do not create, move or push 0.x tags.
 - GitHub releases follow the version tags.
 
@@ -107,11 +112,11 @@ sources/             upstream tarball, ignored
 
 - The no-commit rule in Repository applies to every step.
 - Ask before changing the major line.
-- Ask before rebuilding an existing `packages/<version>/`.
+- Ask before rebuilding the existing `dist/`.
 - Ask before leaving a change unreleased.
 - The user decides: rebuild the same version, bump the version, or do not repackage yet.
 - Do not replace release files, move release tags or rewrite release history without approval.
-- After approval, rebuild from the final commit so `BUILDINFO` matches HEAD.
+- After approval, rebuild from the final commit.
 
 ## 6. Defaults and migrations
 
@@ -124,7 +129,7 @@ sources/             upstream tarball, ignored
 
 ## 7. Git hygiene
 
-- Ignored: `/build/`, `/packages/`, `/sources/`, `__pycache__/`, `*.py[cod]`.
+- Ignored: `/build/`, `/dist/`, `/sources/`, `__pycache__/`, `*.py[cod]`.
 - Never commit build output, package files, tarballs or `__pycache__`.
 - Anchor root ignore patterns, so `scripts/packages/` stays tracked.
 - Run `scripts/check-commit.sh` before commit.

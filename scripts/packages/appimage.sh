@@ -27,8 +27,8 @@ trap 'rm -rf "$work"' EXIT
 appdir="$work/Firegila.AppDir"
 mkdir -p "$appdir"
 cp -a "$stage"/. "$appdir"/
-cp "$ROOT/branding/firegila.desktop" "$appdir/firegila.desktop"
-cp "$ROOT/app-icons/firegila-512.png" "$appdir/firegila.png"
+cp "$ROOT/assets/firegila.desktop" "$appdir/firegila.desktop"
+cp "$ROOT/assets/icons/firegila-512.png" "$appdir/firegila.png"
 cp "$ROOT/packaging/appimage/AppRun" "$appdir/AppRun"
 chmod +x "$appdir/AppRun"
 ln -sf firegila.png "$appdir/.DirIcon"

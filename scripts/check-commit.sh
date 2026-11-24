@@ -18,7 +18,7 @@ check_ignored() {
 }
 
 check_ignored "build/.probe"
-check_ignored "packages/$VERSION/.probe"
+check_ignored "dist/.probe"
 check_ignored "sources/.probe"
 check_ignored "scripts/__pycache__/probe.pyc"
 
@@ -39,7 +39,7 @@ done
 limit=10485760
 for file in $(git diff --cached --name-only); do
   case "$file" in
-    app-icons/*|extensions/*) continue ;;
+    assets/icons/*|assets/*.xpi) continue ;;
   esac
   [ -f "$file" ] || continue
   size="$(git cat-file -s ":$file" 2>/dev/null || wc -c < "$file")"

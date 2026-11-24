@@ -10,7 +10,7 @@ from PIL import Image
 from omnijar import extract, replace, require_paths
 
 ROOT, BUILD = require_paths()
-MASTER = ROOT / "app-icons" / "firegila-2048.png"
+MASTER = ROOT / "assets/icons" / "firegila-2048.png"
 OMNI = BUILD / "browser" / "omni.ja"
 WORK = BUILD / "omni-work"
 

@@ -140,6 +140,14 @@
       "privacy.userContext.ui.enabled": {
         "Value": false,
         "Status": "locked"
+      },
+      "browser.toolbars.bookmarks.visibility": {
+        "Value": "never",
+        "Status": "locked"
+      },
+      "browser.vpn_promo.enabled": {
+        "Value": false,
+        "Status": "locked"
       }
     }
   }

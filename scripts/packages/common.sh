@@ -9,7 +9,7 @@ VERSION="$(tr -d ' \n' < "$ROOT/VERSION")"
 ESR="$(tr -d ' \n' < "$ROOT/ESR_VERSION")"
 REVISION="1"
 BUILD="$ROOT/build/firefox"
-OUT="$ROOT/packages/$VERSION"
+OUT="$ROOT/dist"
 ARCH="x86_64"
 DEB_ARCH="amd64"
 MAINTAINER="David Danuja <contact@tactalapaca.com>"
@@ -43,12 +43,6 @@ changelog_bullets() {
 }
 
 prepare_out() {
-  if [ -d "$OUT" ] && \
-    [ -n "$(find "$OUT" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
-    echo "package: $OUT already exists" >&2
-    echo "package: remove it after approval or bump VERSION" >&2
-    exit 1
-  fi
   rm -rf "$OUT"
   mkdir -p "$OUT"
 }
@@ -64,7 +58,7 @@ stage_root() {
   rm -f "$dest/usr/lib/firegila/firegila.desktop"
   rm -rf "$dest/usr/lib/firegila/icons"
   ln -s ../lib/firegila/firegila "$dest/usr/bin/firegila"
-  cp "$ROOT/branding/firegila.desktop" \
+  cp "$ROOT/assets/firegila.desktop" \
     "$dest/usr/share/applications/firegila.desktop"
   for size in 16 32 48 64 128; do
     icon="$BUILD/browser/chrome/icons/default/default${size}.png"
@@ -74,7 +68,7 @@ stage_root() {
     fi
   done
   mkdir -p "$dest/usr/share/icons/hicolor/512x512/apps"
-  cp "$ROOT/app-icons/firegila-512.png" \
+  cp "$ROOT/assets/icons/firegila-512.png" \
     "$dest/usr/share/icons/hicolor/512x512/apps/firegila.png"
   cp "$ROOT/packaging/common/org.firegila.Firegila.metainfo.xml" \
     "$dest/usr/share/metainfo/org.firegila.Firegila.metainfo.xml"
@@ -82,17 +76,6 @@ stage_root() {
     "$dest/usr/share/doc/firegila/"
   cp "$ROOT/packaging/common/copyright" \
     "$dest/usr/share/doc/firegila/copyright"
-}
-
-write_buildinfo() {
-  {
-    echo "product=$VERSION"
-    echo "esr=$ESR"
-    echo "revision=$REVISION"
-    echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    echo "commit=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo none)"
-    echo "host=$(uname -srm)"
-  } > "$OUT/BUILDINFO"
 }
 
 write_sums() {

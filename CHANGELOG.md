@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.3
+
+- Reworked tab dragging for horizontal, vertical, pinned, group, split and multi-selected tabs.
+- Added one placeholder and row motion, group targets, cross-window drops and tab list drops.
+- Fixed cross-window placeholder width when source and destination tab strips use different tab sizes.
+- Cross-window drops reserve a destination slot, shrink the row and keep the placeholder inside the tab strip.
+- The placeholder hides while the pointer is over the page and no longer covers the window controls.
+- Fixed placeholder alignment when the tab strip is compressed or scrolled.
+- Hid tabs inside an expanded group while its label is dragged.
+- Local tab reorders glide without a placeholder. The placeholder is only used for cross-window drops.
+- Holding a tab being reordered over another tab for half a second shows one solid accent group cue. Moving restores the row.
+- Group creation stays local to one window. Cross-window drops only move the tab.
+- Local tab drags keep the drag ghost in the tab bar. Cross-window drags keep the tab ghost at the cursor.
+- Removed the extra active tab width. Every tab keeps the same width.
+- Removed the hairline under the fixed New Tab row in an overflowing vertical strip.
+- Sync now keeps passwords, history, addons, addresses and settings and locks bookmarks, tabs and the pinned list off.
+- Removed Bookmarks Toolbar, Synced Tabs, Firefox View, container and promo entries from the visible UI.
+- Improved session restore of workspaces, groups and windows. App windows use one top bar and hidden tabs.
+- Shared motion tokens across the chrome, sidebar, tabs column and New Tab customize panel.
+- Gave every nav bar button the same button box and 4px face margin.
+- Removed the leading titlebar spacer on Linux when window controls are on the right.
+- Added icons to the workspace New, Rename and Delete menu items.
+- Updated the bundled uBlock Origin extension to 1.77.0.
+- F12 opens Developer Tools docked on the right, with a one-time migration for existing profiles.
+- Moved release packages to dist and added package archive and clean tree checks.
+
 ## 1.2
 
 - Fixed the workspaces startup error and the saved workspace restore.

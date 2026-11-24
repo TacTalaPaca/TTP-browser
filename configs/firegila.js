@@ -19,6 +19,7 @@ pref("browser.tabs.crashReporting.sendReport", false);
 pref("extensions.pocket.enabled", false);
 pref("browser.privatebrowsing.vpn.ui.enabled", false);
 pref("browser.contentblocking.report.hide_vpn_banner", true);
+pref("browser.vpn_promo.enabled", false);
 // Firegila starts every profile on Strict tracking protection.
 pref("browser.contentblocking.category", "strict");
 pref("privacy.globalprivacycontrol.enabled", true);
@@ -49,6 +50,14 @@ pref("browser.topsites.contile.enabled", false);
 pref("browser.newtabpage.activity-stream.newtabWallpapers.enabled", true);
 pref("browser.newtabpage.activity-stream.newtabWallpapers.customWallpaper.enabled", true);
 pref("browser.newtabpage.activity-stream.newtabWallpapers.customColor.enabled", false);
+// Sync
+// Firefox Accounts stay on. Passwords, history, addons, addresses and
+// settings sync. Bookmarks, Shortcuts and tabs stay local. The New Tab
+// pinned list is not synced as a preference.
+pref("services.sync.engine.bookmarks", false);
+pref("services.sync.engine.tabs", false);
+pref("services.sync.prefs.sync.browser.newtabpage.pinned", false);
+
 // Weather widget. Off by default, opt-in from the New Tab customize menu.
 pref("browser.newtabpage.activity-stream.showWeather", false);
 pref("browser.newtabpage.activity-stream.system.showWeather", true);
@@ -190,7 +199,15 @@ pref("firegila.workspaces.enabled", true);
 pref("firegila.workspaces.scrollSwitch", true);
 pref("firegila.workspaces.list", "[{\"id\":\"ws-default\",\"name\":\"Default\"}]");
 
+// DevTools
+// F12 docks the toolbox on the right. The user can still change it.
+pref("devtools.toolbox.host", "right");
+pref("devtools.toolbox.previousHost", "bottom");
+
 // Convenience
+// Tab groups form after a short hold. The drag controller shows a dashed
+// candidate outline before this delay, so the target does not need to be chased.
+pref("browser.tabs.dragDrop.createGroup.delayMS", 180);
 // Scroll over the tab strip switches tabs, middle click starts autoscroll.
 // Stock ESR has both off.
 pref("toolkit.tabbox.switchByScrolling", true);

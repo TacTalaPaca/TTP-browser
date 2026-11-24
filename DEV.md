@@ -38,18 +38,20 @@ run starts the same. Anything after the flags goes to the browser.
 
 | command | what it does |
 |---|---|
-| `./scripts/package.sh` | build every format into `packages/<version>/` |
+| `./scripts/package.sh` | build every format into `dist/` |
 | `./scripts/package.sh deb rpm` | build only the named formats |
-| `./scripts/install.sh packages/<version>/firegila-<version>-linux-x86_64.tar.xz` | install the tarball to a prefix |
+| `./scripts/install.sh dist/firegila-<version>-linux-x86_64.tar.xz` | install the tarball to a prefix |
 | `./scripts/check-commit.sh` | git hygiene before a commit |
+| `./scripts/check-ui.py` | headless UI checks on the built browser |
 
 Formats: `tarball`, `deb`, `rpm`, `arch`, `appimage`.
 
 Package metadata comes from `scripts/packages/common.sh`: maintainer,
 vendor, homepage, summary and license. Format scripts use the shared values.
 
-`package.sh` refuses to overwrite an existing `packages/<version>/` and
-requires a `CHANGELOG.md` entry for the current version.
+`package.sh` requires a clean committed tree and a `CHANGELOG.md` entry for the
+current version. It replaces `dist/` only when the previous version is already
+archived in `TTP-pkgs/pkgs/firegila/<version>/`.
 
 ## Requirements
 
@@ -131,8 +133,8 @@ package version is `VERSION`, the release revision is 1.
 `package.sh` refuses to run until `customize.sh` has. It stages one `/usr`
 tree from `build/firefox` and passes that same tree to every format, so
 `/usr/lib/firegila`, the launcher, desktop file, icons, metainfo and docs are
-identical everywhere. Output goes to `packages/<version>/` with `SHA256SUMS`
-and `BUILDINFO`. The whole `packages/` tree is gitignored.
+identical everywhere. Output goes to `dist/` with `SHA256SUMS`. The whole
+`dist/` tree is gitignored.
 
 `install.sh` removes and recreates `$PREFIX/lib/firegila`, then writes the
 symlink, desktop entry and icon. Your real profile in `$HOME/.firegila` is not
@@ -140,7 +142,7 @@ touched. Pass a tarball path to install something other than the current
 release:
 
 ```sh
-./scripts/install.sh packages/<version>/firegila-<version>-linux-x86_64.tar.xz
+./scripts/install.sh dist/firegila-<version>-linux-x86_64.tar.xz
 ```
 
 The deb uses `dpkg-deb`, the rpm uses `rpmbuild`, Arch uses `makepkg`, and the
@@ -157,15 +159,18 @@ cache lives in `build/tools/`, also gitignored.
 - `ESR_VERSION` is the Firefox base.
 - `CHANGELOG.md` gets an entry for every version.
 - Commit subjects use `Firegila <version>: <summary>`.
-- Every release gets its own `packages/<version>/` folder and a release entry
-  in `packaging/common/org.firegila.Firegila.metainfo.xml`.
+- Only the current release stays in `dist/`. Before bumping the version, commit
+  the old release and archive its deb, rpm and Arch package in
+  `TTP-pkgs/pkgs/firegila/<version>/`.
+- Every release gets an entry in
+  `packaging/common/org.firegila.Firegila.metainfo.xml`.
 - Tag releases as `v<version>`. Do not create or push 0.x tags.
-- Existing 0.x packages are kept. Do not rebuild or delete them.
+- Existing 0.x releases are kept in `TTP-pkgs`. Do not rebuild or delete them there.
 - Do not add a remote, commit, tag, push or publish until the owner explicitly
   states.
 - Do not rewrite history without owner approval.
 - `scripts/check-commit.sh` runs before a commit. It fails on tracked ignored
-  files, staged files under `build/`, `packages/`, `sources/` or
+  files, staged files under `build/`, `dist/`, `sources/` or
   `scripts/__pycache__`, large staged files, and whitespace errors.
 
 ## Changing the theme

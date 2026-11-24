@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build every package format into packages/<version>. Pass format names to
+# Build every package format into dist/. Pass format names to
 # build a subset: tarball, deb, rpm, arch, appimage.
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,6 +15,34 @@ require_build
   echo "package: no CHANGELOG entry for $VERSION" >&2
   exit 1
 }
+
+if [ "${ALLOW_DIRTY:-0}" != "1" ]; then
+  if ! git -C "$ROOT" diff --quiet || ! git -C "$ROOT" diff --cached --quiet; then
+    echo "package: commit the current work before a release build" >&2
+    echo "package: for a local test build set ALLOW_DIRTY=1" >&2
+    exit 1
+  fi
+fi
+
+old=""
+if [ -d "$ROOT/dist" ]; then
+  for file in "$ROOT"/dist/firegila_*_amd64.deb; do
+    [ -e "$file" ] || continue
+    base=$(basename "$file")
+    version=${base#firegila_}
+    old=${version%%_*}
+  done
+fi
+if [ -n "$old" ] && [ "$old" != "$VERSION" ]; then
+  archive="${TTP_PKGS:-$HOME/TacTalaPaca/TTP-pkgs}/pkgs/firegila/$old"
+  if [ ! -d "$archive" ]; then
+    echo "package: previous build $old is not archived in $archive" >&2
+    echo "package: archive it before building $VERSION" >&2
+    exit 1
+  fi
+  echo "package: previous build $old is archived, clearing dist"
+fi
+
 prepare_out
 
 STAGE="$(mktemp -d)"
@@ -35,7 +63,6 @@ for format in $formats; do
   esac
 done
 
-write_buildinfo
 write_sums
 echo "package: $OUT"
 ls -lh "$OUT"

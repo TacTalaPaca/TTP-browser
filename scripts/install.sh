@@ -3,7 +3,7 @@
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VER="$(tr -d ' \n' < "$ROOT/VERSION")"
-TAR="${1:-$ROOT/packages/$VER/firegila-${VER}-linux-x86_64.tar.xz}"
+TAR="${1:-$ROOT/dist/firegila-${VER}-linux-x86_64.tar.xz}"
 PREFIX="${PREFIX:-$HOME/.local}"
 
 [ -f "$TAR" ] || { echo "install: missing $TAR (run package.sh)"; exit 1; }

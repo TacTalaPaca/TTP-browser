@@ -152,6 +152,7 @@ GLOBAL_OVERRIDE_CSS = (
     # animation reads them back out in JS, see SB_BOOTSTRAP_JS.
     + "    --fg-motion-fast: 80ms;\n"
     + "    --fg-motion-base: 140ms;\n"
+    + "    --fg-motion-panel: 180ms;\n"
     + "    --fg-ease: ease;\n"
     + "    --fg-press-down: 90ms;\n"
     + "    --fg-press-up: 220ms;\n"
@@ -456,6 +457,11 @@ MAIN_EDITS = {
         ("""    ini.setString("Desktop Entry", "Icon", iconPath);
 """,
          """    ini.setString("Desktop Entry", "Icon", iconPath);
+    // Firegila web apps are taskbar windows, not application menu entries.
+    // NoDisplay keeps them out of menus and menu indexes. Categories keeps
+    // menu implementations from placing the hidden entry in Lost and Found.
+    ini.setString("Desktop Entry", "NoDisplay", "true");
+    ini.setString("Desktop Entry", "Categories", "Network;WebBrowser;");
     if (startupWMClass) {
       ini.setString("Desktop Entry", "StartupWMClass", startupWMClass);
     }
@@ -767,6 +773,7 @@ NEWTAB_BUTTONS_CSS = """
 :root {
   --fg-motion-fast: 80ms;
   --fg-motion-base: 140ms;
+  --fg-motion-panel: 180ms;
   --fg-ease: ease;
   --fg-press-down: 90ms;
   --fg-press-up: 220ms;
@@ -1515,6 +1522,10 @@ SettingGroupManager.registerGroups({
     # their content. Without resize attributes a splitter is only a divider
     # and drags do nothing.
     "chrome/browser/content/browser/browser.xhtml": [
+        ("""    <key id="viewBookmarksToolbarKb"
+         data-l10n-id="bookmark-show-toolbar-shortcut"
+         modifiers="accel,shift"/>
+""", ""),
         ('<splitter orient="vertical" id="vertical-pinned-tabs-splitter" resizebefore="sibling" resizeafter="none" hidden="true"/>',
          '<splitter orient="vertical" id="vertical-pinned-tabs-splitter" hidden="true"/>'),
         ('    <command id="Browser:OpenLocation" />\n',
@@ -1778,9 +1789,9 @@ SettingGroupManager.registerGroups({
         </box>
         <menupopup id="firegila-workspace-menu">
           <menuseparator id="firegila-workspace-separator"/>
-          <menuitem id="firegila-workspace-new" data-l10n-id="firegila-workspace-new"/>
-          <menuitem id="firegila-workspace-rename" data-l10n-id="firegila-workspace-rename"/>
-          <menuitem id="firegila-workspace-delete" data-l10n-id="firegila-workspace-delete"/>
+          <menuitem id="firegila-workspace-new" class="menuitem-iconic" data-l10n-id="firegila-workspace-new"/>
+          <menuitem id="firegila-workspace-rename" class="menuitem-iconic" data-l10n-id="firegila-workspace-rename"/>
+          <menuitem id="firegila-workspace-delete" class="menuitem-iconic" data-l10n-id="firegila-workspace-delete"/>
         </menupopup>
       </toolbarbutton>
 """),
@@ -1858,6 +1869,98 @@ SettingGroupManager.registerGroups({
         draggedTabDocument.documentGlobal.gBrowser.tabContainer;
       pinnedDropIndicator?.removeAttribute("visible");
       pinnedDropIndicator?.removeAttribute("interactive");
+"""),
+        ("""      dt.setDragImage(toDrag, dragImageOffset, dragImageOffset);
+""",
+         """      const firegilaOwnImage =
+        !!window.FiregilaTabDrag &&
+        !fromTabList &&
+        isTab(tab) &&
+        !tab.multiselected &&
+        !tab.splitview &&
+        !document.documentElement.hasAttribute("taskbartab");
+      if (!firegilaOwnImage) {
+        dt.setDragImage(toDrag, dragImageOffset, dragImageOffset);
+      }
+"""),
+        ("""      var draggedTab = dt.mozGetDataAt(TAB_DROP_TYPE, 0);
+
+      // Prevent this code from running if a tabdrop animation is
+      // running since calling finishAnimateTabMove would clear
+      // any CSS transition that is running.
+      if (draggedTab.hasAttribute("tabdrop-samewindow")) {
+        return;
+      }
+
+      this.finishMoveTogetherSelectedTabs(draggedTab);
+      this.finishAnimateTabMove();
+      if (isTabGroupLabel(draggedTab)) {
+        this._setIsDraggingTabGroup(draggedTab.group, false);
+        this._expandGroupOnDrop(draggedTab);
+      }
+      this._resetTabsAfterDrop(draggedTab.ownerDocument);
+
+      if (
+        dt.mozUserCancelled ||
+        dt.dropEffect != "none" ||
+        !Services.prefs.getBoolPref("browser.tabs.allowTabDetach") ||
+        this._tabbrowserTabs._isCustomizing
+      ) {
+        delete draggedTab._dragData;
+        return;
+      }
+
+      // Disable detach within the browser toolbox
+      let [tabAxisPos, tabAxisStart, tabAxisEnd] = this._tabbrowserTabs
+        .verticalMode
+        ? [event.screenY, window.screenY, window.screenY + window.outerHeight]
+        : [event.screenX, window.screenX, window.screenX + window.outerWidth];
+
+      if (tabAxisPos > tabAxisStart && tabAxisPos < tabAxisEnd) {
+""",
+         """      var draggedTab = dt.mozGetDataAt(TAB_DROP_TYPE, 0);
+      var firegilaDrag = draggedTab?._dragData;
+      if (firegilaDrag?.firegilaHandled) {
+        delete draggedTab._dragData;
+        return;
+      }
+      var firegilaDetach = !!firegilaDrag?.firegilaDetach;
+
+      // Prevent this code from running if a tabdrop animation is
+      // running since calling finishAnimateTabMove would clear
+      // any CSS transition that is running.
+      if (draggedTab.hasAttribute("tabdrop-samewindow")) {
+        return;
+      }
+
+      this.finishMoveTogetherSelectedTabs(draggedTab);
+      this.finishAnimateTabMove();
+      if (isTabGroupLabel(draggedTab)) {
+        this._setIsDraggingTabGroup(draggedTab.group, false);
+        this._expandGroupOnDrop(draggedTab);
+      }
+      this._resetTabsAfterDrop(draggedTab.ownerDocument);
+
+      if (
+        firegilaDetach
+          ? !Services.prefs.getBoolPref("browser.tabs.allowTabDetach") ||
+            this._tabbrowserTabs._isCustomizing
+          : dt.mozUserCancelled ||
+            dt.dropEffect != "none" ||
+            !Services.prefs.getBoolPref("browser.tabs.allowTabDetach") ||
+            this._tabbrowserTabs._isCustomizing
+      ) {
+        delete draggedTab._dragData;
+        return;
+      }
+
+      // Disable detach within the browser toolbox
+      let [tabAxisPos, tabAxisStart, tabAxisEnd] = this._tabbrowserTabs
+        .verticalMode
+        ? [event.screenY, window.screenY, window.screenY + window.outerHeight]
+        : [event.screenX, window.screenX, window.screenX + window.outerWidth];
+
+      if (!firegilaDetach && tabAxisPos > tabAxisStart && tabAxisPos < tabAxisEnd) {
 """),
     ],
     # The sidebar menu belongs to the strip in vertical tabs mode too. Stock
@@ -2714,6 +2817,34 @@ Preferences.addSetting({
         id: "allowVAAPI",
         l10nId: "performance-allow-vaapi",
       },
+"""),
+    ],
+    "chrome/browser/content/browser/preferences/dialogs/syncChooseWhatToSync.xhtml": [
+        ("""      <html:div class="sync-engine-bookmarks">
+        <checkbox
+          id="syncEngineBookmarks"
+          data-l10n-id="sync-engine-bookmarks"
+          preference="services.sync.engine.bookmarks"
+        />
+      </html:div>
+""", ""),
+        ("""      <html:div class="sync-engine-tabs">
+        <checkbox
+          id="syncEngineTabs"
+          data-l10n-id="sync-engine-tabs"
+          preference="services.sync.engine.tabs"
+        />
+      </html:div>
+""", ""),
+    ],
+    "chrome/browser/content/browser/preferences/dialogs/syncChooseWhatToSync.js": [
+        ("""      let checkboxValue = document.getElementById(checkboxId).checked;
+""",
+         """      let checkbox = document.getElementById(checkboxId);
+      if (!checkbox) {
+        continue;
+      }
+      let checkboxValue = checkbox.checked;
 """),
     ],
     "chrome/browser/content/browser/preferences/preferences.xhtml": [
@@ -4022,7 +4153,7 @@ TAB_CSS = """
   min-width: 32px !important;
   height: 32px !important;
   min-height: 32px !important;
-  margin: 4px 2px !important;
+  margin: 4px !important;
   padding: 0 !important;
 }
 
@@ -4030,6 +4161,23 @@ TAB_CSS = """
  * even when it is not part of the tab strip placement. Hide it and keep it
  * out of the vertical tab strip defaults as well. */
 #alltabs-button {
+  display: none !important;
+}
+
+/* The fixed row in an overflowing vertical strip sits on the window edge.
+ * Cover the stock bottom line so the button reads as the last row. */
+#vertical-tabs-newtab-button::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -1px;
+  height: 1px;
+  background-color: var(--fg-tabbar);
+  pointer-events: none;
+}
+
+#tabbrowser-arrowscrollbox[orient="vertical"]::part(overflow-start-indicator),
+#tabbrowser-arrowscrollbox[orient="vertical"]::part(overflow-end-indicator) {
   display: none !important;
 }
 
@@ -4065,6 +4213,22 @@ TAB_GROUP_CSS = """
   --fg-group-tint-hover: 26%;
   --fg-group-tint-active: 32%;
   --fg-tab-row-height: calc(var(--tab-min-height) + 2 * var(--fg-tabs-tab-padding));
+}
+
+/* Drag motion. The stock 200ms transition leaves the rows behind the pointer
+ * during a long drag. Rows only move one slot at a time, so a short decel
+ * curve stays smooth without lag. Vertical rows travel less, so they settle
+ * faster than horizontal tabs. */
+:root {
+  --tab-dragover-transition: transform 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+#tabbrowser-tabs[orient="vertical"] {
+  --tab-dragover-transition: transform 100ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+#tabbrowser-tabs[movingtab] .tabbrowser-tab[dragtarget] {
+  will-change: transform;
 }
 
 /* The stock group line and the overflow count are removed in both
@@ -4646,12 +4810,203 @@ tab-group[hasactivetab] > .tab-group-label-container .tab-group-label {
   outline-offset: 1px;
 }
 
+/* A group label drag moves the whole group. Keep its tabs out of the strip
+ * for the whole gesture, including the active tab. */
+#tabbrowser-tabs tab-group[movingtabgroup] > .tabbrowser-tab,
+#tabbrowser-tabs tab-group[movingtabgroup] > tab-split-view-wrapper {
+  display: none !important;
+}
+
 /* Drag targets use the accent color. */
-#tabbrowser-tabs[movingtab-group] .tabbrowser-tab[dragover-groupTarget] > .tab-stack > .tab-background,
-#tabbrowser-tabs[movingtab-group] .tabbrowser-tab > .tab-stack > .tab-background[dragover-groupTarget] {
-  background-color: var(--fg-hover) !important;
-  outline: 1px solid AccentColor !important;
+/* One rounded group indicator. The neutral surface fades to an accent tint
+ * and the single border fades to the accent color. */
+.tabbrowser-tab[fg-group-candidate] > .tab-stack > .tab-background {
+  background-color: color-mix(in srgb, AccentColor 12%, var(--fg-tab-bg)) !important;
+  border: 1px solid AccentColor !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.tab-group-label[fg-group-candidate] {
+  background-color: color-mix(in srgb, AccentColor 12%, var(--fg-tab-bg)) !important;
+  border: 1px solid AccentColor !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.tabbrowser-tab[fg-group-candidate],
+.tab-group-label[fg-group-candidate] {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Custom tab drag. One placeholder look in both orientations. */
+:root {
+  --fg-tab-drag-motion: 80ms;
+}
+
+#firegila-tab-drop-placeholder {
+  position: fixed;
+  z-index: 7;
+  box-sizing: border-box;
+  pointer-events: none;
+  border: 1px solid AccentColor;
+  border-radius: var(--fg-radius);
+  background-color: color-mix(in srgb, AccentColor 10%, transparent);
+  transition:
+    left var(--fg-tab-drag-motion) var(--fg-ease),
+    top var(--fg-tab-drag-motion) var(--fg-ease),
+    width var(--fg-tab-drag-motion) var(--fg-ease),
+    height var(--fg-tab-drag-motion) var(--fg-ease);
+}
+
+#firegila-tab-drop-placeholder[hidden],
+#firegila-tab-drop-placeholder.fg-no-transition {
+  transition: none !important;
+}
+
+#firegila-tab-drop-placeholder[hidden] {
+  display: none !important;
+}
+
+/* A cross-window drop adds one tab. The invisible spacer reserves that slot
+ * in the destination row, so the existing tabs shrink instead of running
+ * under the window controls. */
+.firegila-tab-drag-spacer {
+  display: block;
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+#tabbrowser-tabs[fg-custom-tab-drag] :is(.tabbrowser-tab, .tab-group-label-container, tab-split-view-wrapper) {
+  transition: transform var(--fg-tab-drag-motion) var(--fg-ease) !important;
+  will-change: transform;
+}
+
+:root[fg-custom-tab-drag] .tab-drop-indicator {
+  display: none !important;
+}
+
+.firegila-tab-drag-image {
+  position: fixed;
+  z-index: 8;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0.85;
+}
+
+.firegila-tab-drag-surface {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding-inline: 10px;
+  overflow: hidden;
+  border: 1px solid var(--fg-tab-border);
+  border-radius: var(--fg-radius);
+}
+
+.firegila-tab-drag-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.firegila-tab-drag-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.firegila-tab-drag-badge {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding-inline: 4px;
+  border-radius: var(--border-radius-circle);
+  background-color: var(--fg-bg-3);
+  color: var(--fg-text);
+  font-size: 10px;
+  line-height: 1;
+}
+
+#firegila-tab-drag-shield {
+  position: fixed;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+#firegila-tab-drag-shield[fg-active] {
+  outline: 1px solid color-mix(in srgb, AccentColor 55%, transparent);
   outline-offset: -1px;
+  background-color: color-mix(in srgb, AccentColor 4%, transparent);
+}
+
+.firegila-tab-drag-hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid AccentColor;
+  border-radius: var(--fg-radius);
+  background-color: var(--fg-bg);
+  color: var(--fg-text);
+  font-weight: var(--font-weight-semibold);
+  pointer-events: none;
+}
+
+.firegila-tab-drag-hint[hidden] {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #firegila-tab-drop-placeholder,
+  .firegila-tab-drag-spacer,
+  #tabbrowser-tabs[fg-custom-tab-drag] :is(.tabbrowser-tab, .tab-group-label-container, tab-split-view-wrapper) {
+    transition: none !important;
+  }
+}
+
+/* A drag owns the strip. No tab shows a keyboard focus ring while a tab is
+ * being dragged. The selected accent border stays. */
+:root[fg-custom-tab-drag] .tabbrowser-tab,
+:root[fg-custom-tab-drag] .tabbrowser-tab > .tab-stack,
+:root[fg-custom-tab-drag] .tabbrowser-tab > .tab-stack > .tab-background,
+:root[fg-custom-tab-drag] .tab-group-label,
+:root[fg-custom-tab-drag] .tab-group-label-container {
+  outline: none !important;
+}
+
+/* While a tab comes from another window, the reserved slot changes size in
+ * one frame. Only the row glide is animated. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[fg-target-drag] #tabbrowser-tabs[orient="horizontal"] .tabbrowser-tab {
+    transition: transform var(--fg-tab-drag-motion) var(--fg-ease) !important;
+  }
+}
+
+/* A drag owns the strip. The new tab buttons take space but must not show
+ * under the placeholder. Visibility keeps the layout still. */
+:root:has(#tabbrowser-tabs[movingtab]) #tabs-newtab-button,
+:root:has(#tabbrowser-tabs[movingtab]) #vertical-tabs-newtab-button,
+:root:has(#tabbrowser-tabs[movingtab]) #new-tab-button {
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 """# Flat content area. Stock draws a hairline outline around the page and rounds
 # the corner next to the sidebar. Firegila keeps it square and borderless.
@@ -4725,6 +5080,16 @@ NEWTAB_TWEAKS_CSS = """
   margin: 0 !important;
   box-sizing: border-box !important;
   inset-inline-end: 8px !important;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .customize-menu.customize-animate-enter,
+  .customize-menu.customize-animate-exit,
+  .customize-menu.customize-animate-enter-done,
+  .customize-menu.customize-animate-exit-done {
+    transition:
+      transform var(--fg-motion-panel) var(--fg-ease),
+      visibility var(--fg-motion-panel) var(--fg-ease) !important;
+  }
 }
 .customize-menu-content {
   padding: 8px 8px 48px !important;
@@ -5048,7 +5413,7 @@ def patch_jar(jar, edits, remove_dirs=(), art=(), appends=(), sweep=False,
         shutil.rmtree(work / d, ignore_errors=True)
         print(f"{jar.name} removed {d}")
     if art:
-        master = Image.open(ROOT / "app-icons" / "firegila-2048.png").convert("RGBA")
+        master = Image.open(ROOT / "assets/icons" / "firegila-2048.png").convert("RGBA")
         buf = io.BytesIO()
         master.resize((256, 256), Image.LANCZOS).save(buf, "PNG", optimize=True)
         svg = (
@@ -5075,9 +5440,33 @@ SB_CHROME_CSS = """
   --fg-tabs-tab-padding: 2px;
   --fg-tabs-collapsed-width: var(--fg-navbar-height, var(--tab-min-height));
   --fg-pinned-columns: 4;
-  /* The tabs column reveal is longer than the base motion, so the wide
-   * width and pinned grid slide settle together. */
-  --fg-tabs-motion: 160ms;
+  --fg-navbar-button-pad: 4px;
+  /* The tabs column reveal matches the other sliding panels. */
+  --fg-tabs-motion: var(--fg-motion-panel, 180ms);
+}
+
+/* Linux window controls sit on the right in the default GTK placement. Stock
+ * keeps a 40px pre-tabs spacer in a normal window, which leaves a blank strip
+ * before the first tab. The spacer stays when the window controls are moved
+ * to the left. */
+@media (-moz-platform: linux) and (-moz-gtk-csd-reversed-placement: 0) {
+  #TabsToolbar > .titlebar-spacer[type="pre-tabs"],
+  #nav-bar > .titlebar-spacer[type="pre-tabs"] {
+    display: none !important;
+  }
+}
+
+/* Toolbar buttons keep one outer padding on every side. The nav bar is 40px
+ * high and a button face is 32px, so 4px inline matches the 4px above and
+ * below. Stock adds 8px only to the first button and the app menu. */
+#nav-bar .toolbarbutton-1 {
+  padding-inline: var(--fg-navbar-button-pad) !important;
+}
+
+/* Extension widgets add their own margin around the action button. Remove it
+ * so every button box in the nav bar has the same width. */
+#nav-bar-customization-target > toolbaritem.toolbaritem-combined-buttons {
+  margin-inline: 0 !important;
 }
 
 #sidebar-container {
@@ -5150,6 +5539,19 @@ SB_CHROME_CSS = """
   flex: 1 1 auto;
   min-height: 0;
   background-color: var(--fg-tabbar);
+}
+
+/* Cover the bottom edge of the column. In an overflowing strip the fixed
+ * New Tab row sits on this edge and the stock hairline reads as a divider. */
+#vertical-tabs-container::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  height: 1px;
+  background-color: var(--fg-tabbar);
+  pointer-events: none;
+  z-index: 20;
 }
 
 /* Drop targets for a tab drag. They overlay the empty end of the column so
@@ -5514,10 +5916,13 @@ SB_CHROME_CSS = """
   :root[fg-autocollapse-tabs]:has(#tabbrowser-tabs:is([movingtab], [movingtab-group], [movingtab-addToGroup], [movingtab-ungroup])) #vertical-tabs-container {
     transform: none !important;
     width: var(--fg-tabs-width) !important;
+    transition: none !important;
+    overflow: visible !important;
   }
 
   :root[fg-autocollapse-tabs]:has(#tabbrowser-tabs:is([movingtab], [movingtab-group], [movingtab-addToGroup], [movingtab-ungroup])) #pinned-tabs-container[orient="vertical"]::part(items-wrapper) {
     transform: none !important;
+    transition: none !important;
   }
 }
 
@@ -5978,8 +6383,7 @@ SB_CHROME_CSS = """
   width: 150px;
   height: 32px;
   min-height: 32px;
-  margin-block: 4px;
-  margin-inline: 4px 2px;
+  margin: 4px;
   padding: 0 8px;
   border: 1px solid var(--fg-tab-border);
   border-radius: 8px;
@@ -6124,15 +6528,31 @@ SB_CHROME_CSS = """
   --menuitem-padding: 5px 10px;
 }
 
-/* No gutter. The radio marker and the icon slot are not drawn, so names and
- * commands all start at the same padding. */
+/* Workspace rows have no icon slot. Action items keep one for their icon. */
 
-#firegila-workspace-menu > menuitem > .menu-icon {
+#firegila-workspace-menu > menuitem.firegila-workspace-item > .menu-icon {
   display: none;
+}
+
+#firegila-workspace-menu > menuitem.menuitem-iconic > .menu-icon {
+  -moz-context-properties: fill;
+  fill: var(--menuitem-icon-fill, currentColor);
 }
 
 #firegila-workspace-menu > menuitem {
   min-height: 32px;
+}
+
+#firegila-workspace-new {
+  --menuitem-icon: url("chrome://global/skin/icons/plus.svg");
+}
+
+#firegila-workspace-rename {
+  --menuitem-icon: url("chrome://global/skin/icons/edit.svg");
+}
+
+#firegila-workspace-delete {
+  --menuitem-icon: url("chrome://global/skin/icons/delete.svg");
 }
 
 #firegila-workspace-menu > menuitem[_moz-menuactive]:not([disabled]) {
@@ -6312,6 +6732,8 @@ SB_BOOTSTRAP_JS = """
   const DEFAULT_BOOKMARKS_PREF = "firegila.migration.defaultBookmarks";
   const STRICT_TRACKING_PREF = "firegila.migration.strictTracking.v2";
   const GPC_PREF = "firegila.migration.globalPrivacyControl";
+  const WEBAPP_DESKTOP_PREF = "firegila.migration.webappDesktopEntries.v1";
+  const DEVTOOLS_HOST_PREF = "firegila.migration.devtoolsHost.v1";
   const STOCK_DEFAULT_BOOKMARKS = [
     ["Get Help", "https://support.mozilla.org/products/firefox"],
     [
@@ -6360,6 +6782,86 @@ SB_BOOTSTRAP_JS = """
       Services.prefs.setBoolPref("privacy.globalprivacycontrol.enabled", true);
     } catch (e) {}
     Services.prefs.setBoolPref(GPC_PREF, true);
+  }
+
+  // Existing profiles keep the stock bottom dock after the default changes.
+  // Move the exact stock value to the right once, then leave any later choice
+  // alone.
+  function migrateDevtoolsHost() {
+    if (Services.prefs.getBoolPref(DEVTOOLS_HOST_PREF, false)) {
+      return;
+    }
+    try {
+      if (
+        Services.prefs.getStringPref("devtools.toolbox.host", "bottom") ===
+        "bottom"
+      ) {
+        Services.prefs.setStringPref("devtools.toolbox.host", "right");
+      }
+      Services.prefs.setStringPref("devtools.toolbox.previousHost", "bottom");
+    } catch (e) {}
+    Services.prefs.setBoolPref(DEVTOOLS_HOST_PREF, true);
+  }
+
+  // Older builds left web app desktop entries in the application menu with
+  // no category. Mark them hidden once. The files stay as taskbar identities
+  // and icon sources, but no longer appear in the Linux application menu.
+  async function migrateWebappDesktopEntries() {
+    if (Services.prefs.getBoolPref(WEBAPP_DESKTOP_PREF, false)) {
+      return;
+    }
+    try {
+      let dataHome = Services.env.get("XDG_DATA_HOME");
+      if (!dataHome || !PathUtils.isAbsolute(dataHome)) {
+        const home = Services.dirsvc.get("Home", Ci.nsIFile);
+        dataHome = PathUtils.join(home.path, ".local", "share");
+      }
+      const dir = PathUtils.join(dataHome, "applications");
+      if (!(await IOUtils.exists(dir))) {
+        Services.prefs.setBoolPref(WEBAPP_DESKTOP_PREF, true);
+        return;
+      }
+      for (const path of await IOUtils.getChildren(dir)) {
+        if (!path.endsWith(".desktop")) {
+          continue;
+        }
+        let text;
+        try {
+          text = await IOUtils.readUTF8(path);
+        } catch (e) {
+          continue;
+        }
+        if (!text.includes("-taskbar-tab")) {
+          continue;
+        }
+        const lines = text.split("\\n");
+        let changed = false;
+        const setLine = (key, value) => {
+          const pattern = new RegExp(`^${key}=.*$`);
+          const index = lines.findIndex(line => pattern.test(line));
+          if (index >= 0) {
+            if (lines[index] !== `${key}=${value}`) {
+              lines[index] = `${key}=${value}`;
+              changed = true;
+            }
+            return;
+          }
+          const section = lines.findIndex(
+            line => line.trim() === "[Desktop Entry]"
+          );
+          lines.splice(section >= 0 ? section + 1 : 0, 0, `${key}=${value}`);
+          changed = true;
+        };
+        setLine("NoDisplay", "true");
+        setLine("Categories", "Network;WebBrowser;");
+        if (changed) {
+          await IOUtils.writeUTF8(path, lines.join("\\n"));
+        }
+      }
+      Services.prefs.setBoolPref(WEBAPP_DESKTOP_PREF, true);
+    } catch (e) {
+      // Retry on the next start.
+    }
   }
 
   // Remove exactly those once, so upgrades match a fresh install. User
@@ -6438,7 +6940,7 @@ SB_BOOTSTRAP_JS = """
     const read = (name, fallback) =>
       computed.getPropertyValue(name).trim() || fallback;
     window.__fgMotion = {
-      duration: parseFloat(read("--fg-motion-base", "180ms")) || 180,
+      duration: parseFloat(read("--fg-motion-panel", "180ms")) || 180,
       easing: read("--fg-ease", "ease"),
     };
   }
@@ -6535,6 +7037,8 @@ SB_BOOTSTRAP_JS = """
     window.setTimeout(() => {
       migrateStrictTracking();
       migrateGlobalPrivacyControl();
+      migrateDevtoolsHost();
+      migrateWebappDesktopEntries();
     }, 2000);
     watchSidebarHidden();
     watchRevealEnter();
@@ -6543,7 +7047,6 @@ SB_BOOTSTRAP_JS = """
     watchFullscreen();
     watchTabsContextMenu();
     watchTabInteraction();
-    patchDragStart();
     watchExternalDrag();
     createTabDropZones();
     watchTabGroupPanels();
@@ -6945,38 +7448,6 @@ SB_BOOTSTRAP_JS = """
     document.l10n?.translateElements?.([
       ...zones.querySelectorAll("[data-l10n-id]"),
     ]);
-  }
-
-  // Keep the grabbed vertical tab centered under the pointer from the first
-  // frame. Stock records the pointer offset, which leaves the row above the
-  // cursor when the grab starts near the bottom of the tab.
-  function patchDragStart() {
-    const proto = window.TabDragAndDrop?.prototype;
-    if (!proto || proto._firegilaCentered) {
-      return;
-    }
-    proto._firegilaCentered = true;
-    const original = proto.handle_dragstart;
-    proto.handle_dragstart = function (event) {
-      const result = original.call(this, event);
-      if (!Services.prefs.getBoolPref("sidebar.verticalTabs", false)) {
-        return result;
-      }
-      const tab = event.target?.closest?.("tab");
-      const data = tab?._dragData;
-      if (!data) {
-        return result;
-      }
-      const rect = tab.getBoundingClientRect();
-      if (rect.height) {
-        const top =
-          typeof tab.screenY === "number"
-            ? tab.screenY
-            : window.mozInnerScreenY + rect.top;
-        data.screenY = top + rect.height / 2;
-      }
-      return result;
-    };
   }
 
   function watchExternalDrag() {
@@ -8863,6 +9334,8 @@ SB_WORKSPACES_JS = """
   let nameMode = "new";
   let lastScroll = 0;
   let started = false;
+  let restoreComplete = false;
+  let reconcileTimer = 0;
   let revealPins = 0;
   const lastTab = new Map();
 
@@ -9013,11 +9486,11 @@ SB_WORKSPACES_JS = """
     SessionStore.setCustomTabValue(tab, TAB_VALUE, id);
   }
 
-  function tabWorkspace(tab) {
+  function rawTabWorkspace(tab) {
     if (!tab) {
-      return null;
+      return "";
     }
-    let id = tab.getAttribute(TAB_VALUE);
+    const id = tab.getAttribute(TAB_VALUE);
     if (workspace(id)) {
       return id;
     }
@@ -9026,19 +9499,40 @@ SB_WORKSPACES_JS = """
       tab.setAttribute(TAB_VALUE, saved);
       return saved;
     }
-    id = activeId || (workspaces[0] && workspaces[0].id);
-    if (id) {
-      assignTab(tab, id);
+    return "";
+  }
+
+  function tabWorkspace(tab) {
+    return rawTabWorkspace(tab);
+  }
+
+  function groupWorkspace(group) {
+    for (const tab of group?.tabs || []) {
+      const id = rawTabWorkspace(tab);
+      if (workspace(id)) {
+        return id;
+      }
     }
-    return id;
+    return "";
+  }
+
+  function assignGroup(group, id) {
+    for (const tab of group?.tabs || []) {
+      if (rawTabWorkspace(tab) !== id) {
+        assignTab(tab, id);
+      }
+    }
   }
 
   function claimUnknown() {
+    if (!activeId) {
+      return;
+    }
     for (const tab of tabsBrowser().tabs) {
       if (tab.closing) {
         continue;
       }
-      if (!SessionStore.getCustomTabValue(tab, TAB_VALUE)) {
+      if (!rawTabWorkspace(tab)) {
         assignTab(tab, activeId);
       }
     }
@@ -9046,7 +9540,7 @@ SB_WORKSPACES_JS = """
 
   function tabsIn(id) {
     return Array.from(tabsBrowser().tabs).filter(
-      tab => !tab.closing && tabWorkspace(tab) === id
+      tab => !tab.closing && rawTabWorkspace(tab) === id
     );
   }
 
@@ -9059,16 +9553,26 @@ SB_WORKSPACES_JS = """
     return !hiddenByOther(tab) && !tab.group?.collapsed;
   }
 
+  function canHide(tab) {
+    return (
+      !tab.closing &&
+      !tab.pinned &&
+      !tab.selected &&
+      !tab.group?.collapsed &&
+      !hiddenByOther(tab)
+    );
+  }
+
   function hideOthers(id) {
     const gb = tabsBrowser();
     for (const tab of gb.tabs) {
       if (tab.closing || tab.hidden) {
         continue;
       }
-      if (tabWorkspace(tab) === id) {
+      if (rawTabWorkspace(tab) === id) {
         continue;
       }
-      if (tab.pinned || tab.selected || tab.group?.collapsed) {
+      if (!canHide(tab)) {
         continue;
       }
       gb.hideTab(tab, HIDDEN_SOURCE);
@@ -9081,17 +9585,84 @@ SB_WORKSPACES_JS = """
   // of the active one.
   function syncGroups() {
     for (const group of document.querySelectorAll("tab-group")) {
-      const first = group.tabs && group.tabs[0];
-      const id = first ? tabWorkspace(first) : null;
+      const id = groupWorkspace(group);
       const show = !enabled() || !id || id === activeId;
       group.style.display = show ? "" : "none";
     }
   }
 
+  // Run one pass over the restored tabs and groups. Tab hiding and group
+  // state arrive in a few asynchronous steps, so the same pass runs once the
+  // restore settles and again on every tab or group change.
+  function reconcile() {
+    if (!started || !restoreComplete) {
+      return;
+    }
+    if (!enabled() || !activeId) {
+      syncGroups();
+      syncUI();
+      return;
+    }
+    if (!workspace(activeId)) {
+      activeId = workspaces[0].id;
+    }
+    const gb = tabsBrowser();
+    for (const tab of gb.tabs) {
+      if (tab.closing) {
+        continue;
+      }
+      if (!rawTabWorkspace(tab)) {
+        assignTab(tab, activeId);
+      }
+    }
+    // A group belongs to one workspace. An existing group keeps its
+    // workspace, and every tab that joins it follows. A new group takes the
+    // workspace of its selected tab, or of its first tab.
+    for (const group of document.querySelectorAll("tab-group")) {
+      let id = groupWorkspace(group);
+      if (!workspace(id) && group.tabs.includes(gb.selectedTab)) {
+        id = rawTabWorkspace(gb.selectedTab);
+      }
+      if (!workspace(id)) {
+        id = activeId;
+      }
+      assignGroup(group, id);
+    }
+    const selected = gb.selectedTab;
+    const selectedId = rawTabWorkspace(selected);
+    if (workspace(selectedId) && !selected?.pinned) {
+      activeId = selectedId;
+    }
+    for (const tab of gb.tabs) {
+      if (tab.closing) {
+        continue;
+      }
+      if (rawTabWorkspace(tab) === activeId) {
+        if (tab.hidden && canShow(tab)) {
+          gb.showTab(tab);
+        }
+      } else if (canHide(tab)) {
+        gb.hideTab(tab, HIDDEN_SOURCE);
+      }
+    }
+    syncGroups();
+    syncUI();
+  }
+
+  function queueReconcile() {
+    if (!restoreComplete || reconcileTimer) {
+      return;
+    }
+    reconcileTimer = window.setTimeout(() => {
+      reconcileTimer = 0;
+      reconcile();
+    }, 0);
+  }
+
   function rememberLast() {
     const tab = tabsBrowser().selectedTab;
-    const id = tab ? tabWorkspace(tab) : null;
-    if (id) {
+    const id = tab ? rawTabWorkspace(tab) : "";
+    if (workspace(id)) {
       lastTab.set(id, tab);
     }
   }
@@ -9102,7 +9673,9 @@ SB_WORKSPACES_JS = """
       return;
     }
     const gb = tabsBrowser();
-    claimUnknown();
+    if (restoreComplete) {
+      claimUnknown();
+    }
     activeId = id;
     const tabs = tabsIn(id);
     for (const tab of tabs) {
@@ -9112,7 +9685,7 @@ SB_WORKSPACES_JS = """
     }
     const remembered = lastTab.get(id);
     const visible = tabs.filter(tab => canShow(tab));
-    if (!visible.length) {
+    if (!tabs.length) {
       const fresh = gb.addTab("about:newtab", {
         triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
       });
@@ -9122,12 +9695,15 @@ SB_WORKSPACES_JS = """
     const pick =
       (remembered && !remembered.closing && visible.includes(remembered)
         ? remembered
-        : null) || visible[0];
+        : null) ||
+      visible[0] ||
+      tabs[0];
     if (pick) {
       gb.selectedTab = pick;
     }
     hideOthers(id);
     rememberLast();
+    queueReconcile();
     syncUI();
   }
 
@@ -9366,26 +9942,27 @@ SB_WORKSPACES_JS = """
       return;
     }
     const tab = event.target;
-    const saved = SessionStore.getCustomTabValue(tab, TAB_VALUE);
+    const saved = rawTabWorkspace(tab);
     if (workspace(saved)) {
-      tab.setAttribute(TAB_VALUE, saved);
       // A tab adopted from another window can belong to a workspace that is
       // not active here. Follow it when it arrives selected, so a cross-window
       // drag never lands in a hidden workspace.
       if (tab.selected && saved !== activeId) {
         activeId = saved;
-        hideOthers(saved);
+        if (restoreComplete) {
+          hideOthers(saved);
+        }
         syncUI();
       }
-    } else if (activeId) {
+    } else if (restoreComplete && activeId) {
       assignTab(tab, activeId);
     }
-    syncGroups();
+    queueReconcile();
   }
 
   function onTabRestored(event) {
     const tab = event.target;
-    const saved = SessionStore.getCustomTabValue(tab, TAB_VALUE);
+    const saved = rawTabWorkspace(tab);
     if (workspace(saved)) {
       tab.setAttribute(TAB_VALUE, saved);
     } else if (activeId) {
@@ -9394,25 +9971,21 @@ SB_WORKSPACES_JS = """
     if (!enabled() || !activeId) {
       return;
     }
-    if (tabWorkspace(tab) !== activeId) {
-      if (!tab.hidden && !tab.pinned && tab !== tabsBrowser().selectedTab) {
-        tabsBrowser().hideTab(tab, HIDDEN_SOURCE);
-      }
-    } else if (tab.hidden && canShow(tab)) {
-      tabsBrowser().showTab(tab);
-    }
+    // The restore pass owns hiding. Doing it per tab left groups half hidden
+    // because group nodes and custom values arrive in a later step.
+    queueReconcile();
     syncUI();
   }
 
   function onTabShow(event) {
-    if (!enabled() || !activeId) {
+    if (!enabled() || !activeId || !restoreComplete) {
       return;
     }
     const tab = event.target;
-    if (tabWorkspace(tab) === activeId) {
+    if (rawTabWorkspace(tab) === activeId) {
       return;
     }
-    if (tab === tabsBrowser().selectedTab || tab.pinned || tab.group?.collapsed) {
+    if (!canHide(tab)) {
       return;
     }
     tabsBrowser().hideTab(tab, HIDDEN_SOURCE);
@@ -9423,13 +9996,62 @@ SB_WORKSPACES_JS = """
       return;
     }
     const tab = tabsBrowser().selectedTab;
-    const id = tabWorkspace(tab);
-    if (id && id !== activeId) {
+    const id = rawTabWorkspace(tab);
+    if (workspace(id) && !tab.pinned && id !== activeId) {
       activeId = id;
-      hideOthers(id);
-      syncUI();
+      if (restoreComplete) {
+        for (const other of tabsIn(id)) {
+          if (other.hidden && canShow(other)) {
+            tabsBrowser().showTab(other);
+          }
+        }
+        hideOthers(id);
+        syncUI();
+      }
     }
     rememberLast();
+    queueReconcile();
+  }
+
+  function onTabGrouped(event) {
+    if (!enabled() || !activeId || !restoreComplete) {
+      queueReconcile();
+      return;
+    }
+    const group = event.target;
+    const tab = event.detail;
+    if (!group || group.localName != "tab-group") {
+      queueReconcile();
+      return;
+    }
+    const gb = tabsBrowser();
+    // A tab joining an existing group moves into the group workspace. A new
+    // group takes the workspace of the selected tab, or of the first tab.
+    let id = "";
+    for (const other of group.tabs) {
+      if (other === tab) {
+        continue;
+      }
+      id = rawTabWorkspace(other);
+      if (workspace(id)) {
+        break;
+      }
+    }
+    if (!workspace(id) && group.tabs.includes(gb.selectedTab)) {
+      id = rawTabWorkspace(gb.selectedTab);
+    }
+    if (!workspace(id) && tab) {
+      id = rawTabWorkspace(tab);
+    }
+    if (!workspace(id)) {
+      id = activeId;
+    }
+    assignGroup(group, id);
+    queueReconcile();
+  }
+
+  function onGroupChanged() {
+    queueReconcile();
   }
 
   function onTabClose(event) {
@@ -9438,6 +10060,7 @@ SB_WORKSPACES_JS = """
         lastTab.delete(id);
       }
     }
+    queueReconcile();
     syncUI();
   }
 
@@ -9480,10 +10103,10 @@ SB_WORKSPACES_JS = """
     container.addEventListener("TabShow", onTabShow);
     container.addEventListener("TabAttrModified", onTabAttr);
     window.addEventListener("SSTabRestored", onTabRestored);
-    window.addEventListener("TabGrouped", syncGroups);
-    window.addEventListener("TabUngrouped", syncGroups);
-    window.addEventListener("TabGroupCollapse", syncGroups);
-    window.addEventListener("TabGroupExpand", syncGroups);
+    window.addEventListener("TabGrouped", onTabGrouped);
+    window.addEventListener("TabUngrouped", onGroupChanged);
+    window.addEventListener("TabGroupCollapse", onGroupChanged);
+    window.addEventListener("TabGroupExpand", onGroupChanged);
     button.addEventListener("wheel", onWheel, { passive: false });
 
     const menu = document.getElementById("firegila-workspace-menu");
@@ -9542,18 +10165,20 @@ SB_WORKSPACES_JS = """
     if (!workspace(activeId)) {
       activeId = workspaces[0].id;
     }
-    if (enabled()) {
-      for (const tab of tabsBrowser().tabs) {
-        if (
-          !tab.closing &&
-          tabWorkspace(tab) === activeId &&
-          tab.hidden &&
-          canShow(tab)
-        ) {
-          tabsBrowser().showTab(tab);
-        }
+    const valid = new Set(workspaces.map(item => item.id));
+    for (const tab of tabsBrowser().tabs) {
+      if (tab.closing) {
+        continue;
       }
-      hideOthers(activeId);
+      const id = rawTabWorkspace(tab);
+      if (id && !valid.has(id)) {
+        assignTab(tab, activeId);
+      }
+    }
+    if (enabled()) {
+      if (restoreComplete) {
+        reconcile();
+      }
     } else {
       for (const tab of tabsBrowser().tabs) {
         if (
@@ -9575,51 +10200,39 @@ SB_WORKSPACES_JS = """
     started = true;
     workspaces = readList();
     const selected = tabsBrowser().selectedTab;
-    const saved = selected
-      ? SessionStore.getCustomTabValue(selected, TAB_VALUE)
-      : "";
+    const saved = selected ? rawTabWorkspace(selected) : "";
     activeId = workspace(saved) ? saved : workspaces[0].id;
-    claimUnknown();
     placeSwitcher();
     wire();
-    if (enabled()) {
-      for (const tab of tabsBrowser().tabs) {
-        if (
-          !tab.closing &&
-          tabWorkspace(tab) === activeId &&
-          tab.hidden &&
-          canShow(tab)
-        ) {
-          tabsBrowser().showTab(tab);
-        }
-      }
-      hideOthers(activeId);
-    }
     syncUI();
     SessionStore.promiseAllWindowsRestored.then(restoreDone, restoreDone);
   }
 
   function restoreDone() {
-    if (!enabled()) {
-      syncUI();
+    restoreComplete = true;
+    if (enabled()) {
+      const selected = tabsBrowser().selectedTab;
+      const saved = selected ? rawTabWorkspace(selected) : "";
+      if (workspace(saved)) {
+        activeId = saved;
+      }
+      claimUnknown();
+      reconcile();
+      // Group nodes and saved custom values can attach a frame after the
+      // window restore promise. Run the pass again once the tree is settled.
+      window.setTimeout(reconcile, 250);
+      window.setTimeout(reconcile, 1000);
       return;
     }
-    const selected = tabsBrowser().selectedTab;
-    const saved = selected
-      ? SessionStore.getCustomTabValue(selected, TAB_VALUE)
-      : "";
-    if (workspace(saved)) {
-      activeId = saved;
-    }
-    for (const tab of Array.from(tabsBrowser().tabs)) {
-      if (tab.closing || tabWorkspace(tab) !== activeId) {
-        continue;
-      }
-      if (tab.hidden && canShow(tab)) {
+    for (const tab of tabsBrowser().tabs) {
+      if (
+        tab.hidden &&
+        SessionStore.getCustomTabValue(tab, "hiddenBy") === HIDDEN_SOURCE
+      ) {
         tabsBrowser().showTab(tab);
       }
     }
-    hideOthers(activeId);
+    syncGroups();
     syncUI();
   }
 
@@ -9677,7 +10290,7 @@ patch_jar(BUILD / "omni.ja", MAIN_EDITS, sweep=True,
                    ("chrome/toolkit/content/global/megalist/megalist.css", MEGALIST_CSS)])
 # Both newtab stylesheets get the same four blocks. The dialog rules land in
 # both because classic and nova each ship their own copy of the modal.
-NEWTAB_PATTERN_SVG = (ROOT / "branding" / "newtab-pattern.svg").read_text()
+NEWTAB_PATTERN_SVG = (ROOT / "assets" / "newtab-pattern.svg").read_text()
 
 
 def newtab_pattern_url(color):
@@ -10603,6 +11216,1987 @@ window.addEventListener("load", () => {
 });
 """
 
+FIREGILA_TABDRAG_JS = r"""
+// Firegila tab drag.
+// Native DnD stays as the transport. This controller owns the drag image,
+// the placeholder, hit testing, group targets and window drops.
+(function () {
+  const XHTML = "http://www.w3.org/1999/xhtml";
+  const TAB_DROP_TYPE = "application/x-moz-tabbrowser-tab";
+  const EDGE_SCROLL = 26;
+  const SCROLL_STEP = 18;
+  const GROUP_CENTER = 0.25;
+  const GROUP_DWELL = 500;
+  const GROUP_MOVE = 3;
+  const GROUP_LEAVE = 14;
+  const STABLE_COUNT = 2;
+  const TOOLBAR_DROP_TARGETS =
+    "#personal-bookmarks, #home-button, #downloads-button, #bookmarks-menu-button, #bookmarks-toolbar";
+
+  function isTabDrag(event) {
+    const types = event.dataTransfer?.types;
+    return !!types && Array.from(types).includes(TAB_DROP_TYPE);
+  }
+
+  function draggedElement(event) {
+    const dt = event.dataTransfer;
+    if (!dt) {
+      return null;
+    }
+    try {
+      return dt.mozGetDataAt(TAB_DROP_TYPE, 0);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function dragSourceWindow(element) {
+    return element?.documentGlobal || element?.ownerDocument?.defaultView || null;
+  }
+
+  function isTab(element) {
+    return element?.localName === "tab";
+  }
+
+  function isGroupLabel(element) {
+    return !!element && element.classList?.contains("tab-group-label");
+  }
+
+  function isSplitView(element) {
+    return element?.localName === "tab-split-view-wrapper";
+  }
+
+  function isDragElement(element) {
+    return isTab(element) || isGroupLabel(element) || isSplitView(element);
+  }
+
+  function movingElementsFor(element) {
+    const data = element?._dragData;
+    const list = data?.movingTabs || [element];
+    return Array.from(list).filter(Boolean);
+  }
+
+  function primaryTabFor(element) {
+    if (isTab(element)) {
+      return element;
+    }
+    if (isGroupLabel(element)) {
+      const group = element.group;
+      return group?.tabs?.find(tab => tab.selected) || group?.tabs?.[0] || null;
+    }
+    if (isSplitView(element)) {
+      return element.tabs?.find(tab => tab.selected) || element.tabs?.[0] || null;
+    }
+    return null;
+  }
+
+  function groupForElement(element) {
+    return element?.group || element?.closest?.("tab-group") || null;
+  }
+
+  function groupForElements(elements) {
+    const groups = new Set();
+    for (const element of elements) {
+      const group = groupForElement(element);
+      if (group) {
+        groups.add(group);
+      }
+    }
+    return groups.size === 1 ? [...groups][0] : null;
+  }
+
+  function visualTabFor(element) {
+    if (isTab(element)) {
+      return element;
+    }
+    if (isSplitView(element)) {
+      return element.tabs?.find(tab => tab.selected) || element.tabs?.[0] || null;
+    }
+    return null;
+  }
+
+  function backgroundRectFor(element) {
+    if (isGroupLabel(element)) {
+      return element.getBoundingClientRect();
+    }
+    const tab = visualTabFor(element);
+    if (tab) {
+      const background = tab.querySelector(".tab-background");
+      if (background) {
+        return background.getBoundingClientRect();
+      }
+    }
+    return element.getBoundingClientRect();
+  }
+
+  function resetGroupDragState(element) {
+    if (!isGroupLabel(element)) {
+      return;
+    }
+    const group = element.group;
+    if (!group) {
+      return;
+    }
+    const win = element.documentGlobal || element.ownerDocument?.defaultView;
+    const container = win?.gBrowser?.tabContainer;
+    try {
+      container?.tabDragAndDrop?._setIsDraggingTabGroup(group, false);
+    } catch (e) {}
+    try {
+      if (element._dragData?.expandGroupOnDrop) {
+        group.collapsed = false;
+      }
+    } catch (e) {}
+  }
+
+  function dragServiceActive() {
+    try {
+      const service = Cc["@mozilla.org/widget/dragservice;1"].getService(
+        Ci.nsIDragService
+      );
+      return !!service.getCurrentSession();
+    } catch (e) {
+      return true;
+    }
+  }
+
+  class FiregilaTabDragController {
+    constructor(win) {
+      this.win = win;
+      this.doc = win.document;
+      this.root = this.doc.documentElement;
+      this.active = false;
+      this.mode = "";
+      this.testMode = false;
+      this.tab = null;
+      this.movingElements = [];
+      this.movingCount = 0;
+      this.primaryTab = null;
+      this.movingGroup = null;
+      this.movingPinned = false;
+      this.hasPinned = false;
+      this.block = false;
+      this.placeholderFull = false;
+      this.groupDragLabel = null;
+      this.splitDrag = false;
+      this.sourceIndexes = [];
+      this.dragImageRect = null;
+      this.dragImageBgRect = null;
+      this.dt = null;
+      this.sourceWindow = null;
+      this.vertical = false;
+      this.grid = false;
+      this.pinned = false;
+      this.sourceIndex = -1;
+      this.elements = [];
+      this.items = [];
+      this.shifts = new Map();
+      this.insertIndex = 0;
+      this.pendingIndex = null;
+      this.pendingCount = 0;
+      this.groupCandidate = null;
+      this.groupEl = null;
+      this.groupActive = false;
+      this.groupDwellTimer = 0;
+      this.groupDwellItem = null;
+      this.groupDwellX = 0;
+      this.groupDwellY = 0;
+      this.groupCueX = 0;
+      this.groupCueY = 0;
+      this.scrollTimer = 0;
+      this.watchTimer = 0;
+      this.placeholder = null;
+      this.spacer = null;
+      this.spacerSize = 0;
+      this.dragImage = null;
+      this.nativeDragImage = null;
+      this.shield = null;
+      this.hint = null;
+      this.pointerX = 0;
+      this.pointerY = 0;
+      this.dragRect = null;
+      this.dragBgRect = null;
+      this.dragSize = 0;
+      this.detachPending = false;
+      this.handled = false;
+
+      this.onDragStart = this.onDragStart.bind(this);
+      this.onDragEnd = this.onDragEnd.bind(this);
+      this.onWindowDragEnter = this.onWindowDragEnter.bind(this);
+      this.onWindowDragOver = this.onWindowDragOver.bind(this);
+      this.onWindowDragLeave = this.onWindowDragLeave.bind(this);
+      this.onWindowDrop = this.onWindowDrop.bind(this);
+      this.onDocumentDrop = this.onDocumentDrop.bind(this);
+      this.onShieldDragOver = this.onShieldDragOver.bind(this);
+      this.onShieldDragLeave = this.onShieldDragLeave.bind(this);
+      this.onShieldDrop = this.onShieldDrop.bind(this);
+      this.onScroll = this.onScroll.bind(this);
+      this.onResize = this.onResize.bind(this);
+
+      this.tabContainer().addEventListener("dragstart", this.onDragStart);
+      win.addEventListener("dragend", this.onDragEnd, true);
+      win.addEventListener("dragenter", this.onWindowDragEnter, true);
+      win.addEventListener("dragover", this.onWindowDragOver, true);
+      win.addEventListener("dragleave", this.onWindowDragLeave, true);
+      win.addEventListener("drop", this.onWindowDrop, true);
+      this.doc.addEventListener("drop", this.onDocumentDrop, true);
+      win.addEventListener("resize", this.onResize);
+      this.tabContainer().arrowScrollbox.addEventListener(
+        "scroll",
+        this.onScroll,
+        true
+      );
+    }
+
+    tabContainer() {
+      return this.win.gBrowser.tabContainer;
+    }
+
+    onDragStart(event) {
+      if (!isTabDrag(event) || this.root.hasAttribute("taskbartab")) {
+        return;
+      }
+      const element = draggedElement(event);
+      if (!isDragElement(element) || !element._dragData) {
+        return;
+      }
+      const moving = movingElementsFor(element);
+      if (!moving.length || !moving.every(isDragElement)) {
+        return;
+      }
+      if (this.active) {
+        this.cleanup();
+      }
+      try {
+        this.startMove(element, event, moving);
+      } catch (e) {
+        console.error("Firegila tab drag:", e);
+        this.cleanup();
+      }
+    }
+
+    startMove(element, event, moving) {
+      this.active = true;
+      this.mode = "move";
+      this.tab = element;
+      this.movingElements = moving;
+      this.movingCount = moving.length;
+      this.primaryTab = primaryTabFor(element);
+      this.movingGroup = groupForElements(moving);
+      this.movingPinned =
+        moving.length > 0 &&
+        moving.every(item => isTab(item) && item.pinned);
+      this.hasPinned = moving.some(item => isTab(item) && item.pinned);
+      if (this.hasPinned && !this.movingPinned) {
+        this.cleanup();
+        return false;
+      }
+      this.pinned = this.movingPinned;
+      this.groupDragLabel = isGroupLabel(element) ? element : null;
+      this.splitDrag = isSplitView(element);
+      this.dt = event.dataTransfer;
+      try {
+        this.dt.effectAllowed = "move";
+      } catch (e) {}
+      this.sourceWindow = this.win;
+      this.tabContainerCache = this.tabContainer();
+      this.vertical = this.tabContainerCache.verticalMode;
+      if (this.groupDragLabel) {
+        const group = this.groupDragLabel.group;
+        if (group && !group.collapsed) {
+          if (this.groupDragLabel._dragData) {
+            this.groupDragLabel._dragData.expandGroupOnDrop = true;
+          }
+          group.collapsed = true;
+        }
+        try {
+          this.tabContainerCache.tabDragAndDrop?._setIsDraggingTabGroup(
+            group,
+            true
+          );
+        } catch (e) {}
+      }
+      this.elements = Array.from(this.tabContainerCache.dragAndDropElements);
+      moving.sort(
+        (a, b) => this.elements.indexOf(a) - this.elements.indexOf(b)
+      );
+      const indexes = moving.map(item => this.elements.indexOf(item));
+      if (indexes.some(index => index < 0)) {
+        this.cleanup();
+        return false;
+      }
+      const first = Math.min(...indexes);
+      const last = Math.max(...indexes);
+      if (last - first + 1 !== moving.length) {
+        this.cleanup();
+        return false;
+      }
+      this.sourceIndexes = indexes;
+      this.sourceIndex = first;
+      this.grid =
+        this.movingPinned &&
+        moving.length === 1 &&
+        isTab(element) &&
+        this.tabContainerCache.isContainerVerticalPinnedGrid(element);
+      this.block =
+        moving.length > 1 || isGroupLabel(element) || isSplitView(element);
+      this.placeholderFull = this.block;
+      this.shifts = new Map();
+      this.insertIndex = this.sourceIndex;
+      this.pendingIndex = this.sourceIndex;
+      this.pendingCount = 0;
+      this.groupCandidate = null;
+      this.groupEl = null;
+      this.groupActive = false;
+      this.groupDwellItem = null;
+      this.groupDwellX = 0;
+      this.groupDwellY = 0;
+      this.groupCueX = 0;
+      this.groupCueY = 0;
+      this.gridTarget = null;
+      this.detachPending = false;
+      this.handled = false;
+      this.setDragAttributes();
+      this.tabContainerElement().getBoundingClientRect();
+      this.buildGeometry();
+      if (element._dragData) {
+        element._dragData.offsetX = this.dragImageRect.width / 2;
+        element._dragData.offsetY = this.dragImageRect.height / 2;
+      }
+      this.createPlaceholder();
+      this.createShield();
+      this.createDragImage();
+      for (const item of moving) {
+        item.style.visibility = "hidden";
+        item.setAttribute("fg-tab-dragging", "");
+      }
+      this.setPointer(event);
+      this.updateVisuals(this.inStrip(this.pointerX, this.pointerY));
+      this.watch();
+      return true;
+    }
+
+    startTarget(element, event) {
+      this.active = true;
+      this.mode = "target";
+      this.tab = element;
+      this.movingElements = movingElementsFor(element).filter(isDragElement);
+      this.movingCount = this.movingElements.length;
+      this.primaryTab = primaryTabFor(element);
+      this.movingGroup = groupForElements(this.movingElements);
+      this.movingPinned =
+        this.movingElements.length > 0 &&
+        this.movingElements.every(item => isTab(item) && item.pinned);
+      this.pinned = this.movingPinned;
+      this.groupDragLabel = null;
+      this.splitDrag = isSplitView(element);
+      this.dt = event.dataTransfer;
+      this.sourceWindow = dragSourceWindow(element);
+      this.tabContainerCache = this.tabContainer();
+      this.vertical = this.tabContainerCache.verticalMode;
+      this.grid = false;
+      this.elements = Array.from(
+        this.tabContainerCache.dragAndDropElements
+      ).filter(element => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      });
+      this.sourceIndex = -1;
+      this.block =
+        this.movingCount > 1 || isGroupLabel(element) || isSplitView(element);
+      this.placeholderFull = this.block;
+      this.shifts = new Map();
+      this.insertIndex = 0;
+      this.pendingIndex = null;
+      this.pendingCount = 0;
+      this.groupCandidate = null;
+      this.groupEl = null;
+      this.groupActive = false;
+      this.groupDwellItem = null;
+      this.groupDwellX = 0;
+      this.groupDwellY = 0;
+      this.groupCueX = 0;
+      this.groupCueY = 0;
+      this.gridTarget = null;
+      this.detachPending = false;
+      this.handled = false;
+      this.setDragAttributes();
+      if (this.mode === "target") {
+        this.root.setAttribute("fg-target-drag", "");
+      }
+      this.tabContainerElement().getBoundingClientRect();
+      this.buildGeometry();
+      this.createPlaceholder();
+      this.createShield();
+      this.setPointer(event);
+      this.createTargetDragImage();
+      this.updateVisuals(this.inStrip(this.pointerX, this.pointerY));
+      this.watch();
+    }
+
+    tabContainerElement() {
+      return this.tabContainerCache || this.tabContainer();
+    }
+
+    dragElement() {
+      return this.tab;
+    }
+
+    shiftElement(element) {
+      if (isGroupLabel(element)) {
+        return element.closest(".tab-group-label-container") || element;
+      }
+      return element;
+    }
+
+    targetSlotCount() {
+      let count = 0;
+      for (const element of this.movingElements) {
+        count += isSplitView(element) ? Math.max(1, element.tabs?.length || 1) : 1;
+      }
+      return Math.max(1, count || this.movingCount);
+    }
+
+    buildGeometry() {
+      const vertical = this.vertical;
+      const items = this.elements.map((element, index) => {
+        const shiftEl = this.shiftElement(element);
+        const shift = this.shifts.get(shiftEl) || 0;
+        const rect = element.getBoundingClientRect();
+        const start = (vertical ? rect.top : rect.left) - shift;
+        return {
+          element,
+          shiftEl,
+          index,
+          rect,
+          start,
+          size: vertical ? rect.height : rect.width,
+          centerX: rect.left + rect.width / 2,
+          centerY: rect.top + rect.height / 2,
+        };
+      });
+      this.items = items;
+      const primaryRect = this.tab.getBoundingClientRect();
+      const first = this.movingElements[0] || this.tab;
+
+      if (this.mode === "move") {
+        this.dragRect = primaryRect;
+        this.dragBgRect =
+          isSplitView(this.tab) || isGroupLabel(this.tab)
+            ? primaryRect
+            : backgroundRectFor(first);
+        this.dragImageRect =
+          isSplitView(this.tab)
+            ? visualTabFor(this.tab)?.getBoundingClientRect() || primaryRect
+            : primaryRect;
+        this.dragImageBgRect = backgroundRectFor(first);
+        this.dragSize = this.movingElements.reduce((total, element) => {
+          const rect = element.getBoundingClientRect();
+          return total + (vertical ? rect.height : rect.width);
+        }, 0);
+      } else {
+        // A cross-window drop takes the geometry from this window. Source
+        // tabs can be a different size when one window has fewer tabs, so
+        // the source width must never reach the destination placeholder.
+        const pinnedCount = this.win.gBrowser.pinnedTabCount;
+        const tabs = items.filter(item => isTab(item.element));
+        const matches = item =>
+          this.pinned ? item.index < pinnedCount : item.index >= pinnedCount;
+        const sample =
+          tabs.find(
+            item =>
+              matches(item) &&
+              !item.element.selected &&
+              !item.element.multiselected
+          ) ||
+          tabs.find(matches) ||
+          tabs[0];
+        const sampleRect = sample ? sample.rect : primaryRect;
+        const sampleBackground = sample
+          ? sample.element.querySelector(".tab-background")
+          : null;
+        const sampleBgRect = sampleBackground
+          ? sampleBackground.getBoundingClientRect()
+          : sampleRect;
+        this.dragRect = sampleRect;
+        this.dragBgRect = sampleBgRect;
+        this.dragImageRect = sampleRect;
+        this.dragImageBgRect = sampleBgRect;
+        const sampleSize = vertical ? sampleRect.height : sampleRect.width;
+        this.dragSize = sampleSize * this.targetSlotCount();
+      }
+      if (!this.dragSize) {
+        this.dragSize = vertical ? 34 : 160;
+      }
+    }
+
+    createPlaceholder() {
+      if (this.placeholder) {
+        return;
+      }
+      const placeholder = this.doc.createElementNS(XHTML, "div");
+      placeholder.id = "firegila-tab-drop-placeholder";
+      placeholder.setAttribute("aria-hidden", "true");
+      placeholder.hidden = true;
+      this.root.appendChild(placeholder);
+      this.placeholder = placeholder;
+    }
+
+    createDragImage() {
+      if (this.dragImage || this.mode !== "move") {
+        return;
+      }
+      const rect =
+        this.dragImageRect ||
+        this.dragRect ||
+        this.tab.getBoundingClientRect();
+      const bgRect = this.dragImageBgRect || rect;
+      const visual = visualTabFor(this.tab);
+      const background = visual?.querySelector?.(".tab-background");
+      const bgStyle = getComputedStyle(background || visual || this.tab);
+      const colorStyle = getComputedStyle(visual || this.tab);
+      const image = this.doc.createElementNS(XHTML, "div");
+      image.className = "firegila-tab-drag-image";
+      image.setAttribute("aria-hidden", "true");
+      image.style.width = `${Math.round(rect.width)}px`;
+      image.style.height = `${Math.round(rect.height)}px`;
+
+      const surface = this.doc.createElementNS(XHTML, "div");
+      surface.className = "firegila-tab-drag-surface";
+      surface.style.left = `${Math.round(bgRect.left - rect.left)}px`;
+      surface.style.top = `${Math.round(bgRect.top - rect.top)}px`;
+      surface.style.width = `${Math.round(bgRect.width)}px`;
+      surface.style.height = `${Math.round(bgRect.height)}px`;
+      surface.style.backgroundColor = bgStyle.backgroundColor;
+      surface.style.borderColor =
+        visual?.selected || this.tab.selected
+          ? "var(--tab-border-color-accent, AccentColor)"
+          : bgStyle.borderColor;
+      surface.style.color = colorStyle.color;
+
+      if (visual) {
+        const icon = this.doc.createElementNS(XHTML, "img");
+        icon.className = "firegila-tab-drag-icon";
+        icon.src =
+          visual.getAttribute("image") ||
+          this.win.gBrowser.getIcon(visual) ||
+          "chrome://branding/content/icon32.png";
+        surface.appendChild(icon);
+      }
+
+      const label = this.doc.createElementNS(XHTML, "span");
+      label.className = "firegila-tab-drag-label";
+      if (visual) {
+        label.textContent = visual.getAttribute("label") || "";
+      } else if (isGroupLabel(this.tab)) {
+        label.textContent =
+          this.tab.getAttribute("label") ||
+          this.tab.label ||
+          this.tab.group?.label ||
+          "";
+      } else {
+        label.textContent = "";
+      }
+      surface.appendChild(label);
+
+      if (this.movingCount === 1 && this.pinned) {
+        label.remove();
+        surface.style.paddingInline = "0";
+        surface.style.justifyContent = "center";
+      } else {
+        const count =
+          this.movingCount > 1
+            ? `+${this.movingCount - 1}`
+            : isSplitView(this.tab)
+              ? String(this.tab.tabs.length)
+              : "";
+        if (count) {
+          const badge = this.doc.createElementNS(XHTML, "span");
+          badge.className = "firegila-tab-drag-badge";
+          badge.textContent = count;
+          surface.appendChild(badge);
+        }
+      }
+
+      image.appendChild(surface);
+      this.root.appendChild(image);
+      this.dragImage = image;
+
+      // A fully transparent native image is ignored and Firefox falls back
+      // to the generic document icon. Use a 1px near transparent surface so
+      // the native image is accepted and none of its pixels are visible.
+      const native = this.doc.createElementNS(XHTML, "div");
+      native.style.position = "fixed";
+      native.style.left = "0";
+      native.style.top = "0";
+      native.style.width = "1px";
+      native.style.height = "1px";
+      native.style.backgroundColor = "rgba(0, 0, 0, 0.01)";
+      native.style.pointerEvents = "none";
+      native.style.zIndex = "-1";
+      native.setAttribute("aria-hidden", "true");
+      this.root.appendChild(native);
+      this.nativeDragImage = native;
+      try {
+        this.dt.setDragImage(native, 0, 0);
+      } catch (e) {
+        console.error("Firegila tab drag image:", e);
+      }
+    }
+
+    positionDragImage() {
+      if (!this.dragImage) {
+        return;
+      }
+      const width = this.dragImage.offsetWidth || this.dragImageRect.width;
+      const height = this.dragImage.offsetHeight || this.dragImageRect.height;
+      let left;
+      let top;
+      if (this.mode === "target") {
+        left = this.pointerX - width / 2;
+        top = this.pointerY - height / 2;
+        left = Math.max(0, Math.min(this.win.innerWidth - width, left));
+        top = Math.max(0, Math.min(this.win.innerHeight - height, top));
+      } else {
+        if (!this.inStrip(this.pointerX, this.pointerY)) {
+          this.dragImage.style.visibility = "hidden";
+          return;
+        }
+        const host = this.vertical
+          ? this.doc.getElementById("vertical-tabs-container")
+          : this.doc.getElementById("TabsToolbar");
+        if (!host) {
+          return;
+        }
+        const hostRect = host.getBoundingClientRect();
+        if (this.vertical) {
+          left = hostRect.left + Math.max(0, (hostRect.width - width) / 2);
+          top = this.pointerY - height / 2;
+          top = Math.max(hostRect.top, Math.min(hostRect.bottom - height, top));
+        } else {
+          left = this.pointerX - width / 2;
+          left = Math.max(hostRect.left, Math.min(hostRect.right - width, left));
+          top = hostRect.top + Math.max(0, (hostRect.height - height) / 2);
+        }
+      }
+      this.dragImage.style.left = `${left}px`;
+      this.dragImage.style.top = `${top}px`;
+      this.dragImage.style.visibility = "visible";
+    }
+
+    createTargetDragImage() {
+      if (this.mode !== "target" || this.dragImage) {
+        return;
+      }
+      const source = this.sourceWindow?.FiregilaTabDrag?.dragImage;
+      if (!source) {
+        return;
+      }
+      const image = source.cloneNode(true);
+      image.style.visibility = "hidden";
+      image.setAttribute("aria-hidden", "true");
+      this.root.appendChild(image);
+      this.dragImage = image;
+      this.positionDragImage();
+    }
+
+    createShield() {
+      if (this.shield) {
+        return;
+      }
+      const rect = this.shieldRect();
+      if (!rect) {
+        return;
+      }
+      const shield = this.doc.createElementNS(XHTML, "div");
+      shield.id = "firegila-tab-drag-shield";
+      shield.setAttribute("aria-hidden", "true");
+      shield.style.left = `${rect.left}px`;
+      shield.style.top = `${rect.top}px`;
+      shield.style.width = `${rect.width}px`;
+      shield.style.height = `${rect.height}px`;
+      const hint = this.doc.createElementNS(XHTML, "div");
+      hint.className = "firegila-tab-drag-hint";
+      hint.hidden = true;
+      hint.textContent =
+        this.mode === "target" ? "Move to this window" : "New window";
+      shield.appendChild(hint);
+      shield.addEventListener("dragover", this.onShieldDragOver, true);
+      shield.addEventListener("dragleave", this.onShieldDragLeave, true);
+      shield.addEventListener("drop", this.onShieldDrop, true);
+      this.root.appendChild(shield);
+      this.shield = shield;
+      this.hint = hint;
+    }
+
+    shieldRect() {
+      const box = this.doc.getElementById("tabbrowser-tabbox");
+      const target = box || this.doc.getElementById("appcontent");
+      if (!target) {
+        return null;
+      }
+      const rect = target.getBoundingClientRect();
+      if (!this.vertical) {
+        return rect;
+      }
+      const column = this.doc
+        .getElementById("vertical-tabs-container")
+        ?.getBoundingClientRect();
+      if (!column || !column.width) {
+        return rect;
+      }
+      const middle = this.win.innerWidth / 2;
+      if (column.left < middle) {
+        const left = Math.max(rect.left, column.right);
+        return {
+          left,
+          top: rect.top,
+          width: Math.max(0, rect.right - left),
+          height: rect.height,
+        };
+      }
+      const right = Math.min(rect.right, column.left);
+      return {
+        left: rect.left,
+        top: rect.top,
+        width: Math.max(0, right - rect.left),
+        height: rect.height,
+      };
+    }
+
+    refreshShield() {
+      if (!this.shield) {
+        return;
+      }
+      const rect = this.shieldRect();
+      if (!rect) {
+        return;
+      }
+      this.shield.style.left = `${rect.left}px`;
+      this.shield.style.top = `${rect.top}px`;
+      this.shield.style.width = `${rect.width}px`;
+      this.shield.style.height = `${rect.height}px`;
+    }
+
+    setDragAttributes() {
+      const container = this.tabContainerElement();
+      container.setAttribute("movingtab", "");
+      container.setAttribute("fg-custom-tab-drag", "");
+      this.win.gNavToolbox?.setAttribute("movingtab", "");
+      this.root.setAttribute("fg-custom-tab-drag", "");
+      const indicator = container.querySelector(".tab-drop-indicator");
+      if (indicator) {
+        indicator.hidden = true;
+      }
+    }
+
+    clearDragAttributes() {
+      const container = this.tabContainerElement();
+      container.removeAttribute("movingtab");
+      container.removeAttribute("fg-custom-tab-drag");
+      container.removeAttribute("movingtab-group");
+      this.win.gNavToolbox?.removeAttribute("movingtab");
+      this.root.removeAttribute("fg-custom-tab-drag");
+      this.root.removeAttribute("fg-target-drag");
+    }
+
+    setPointer(event) {
+      const screenX = Number.isFinite(event.screenX)
+        ? event.screenX
+        : event.clientX + (this.win.mozInnerScreenX || 0);
+      const screenY = Number.isFinite(event.screenY)
+        ? event.screenY
+        : event.clientY + (this.win.mozInnerScreenY || 0);
+      this.pointerX = screenX - (this.win.mozInnerScreenX || 0);
+      this.pointerY = screenY - (this.win.mozInnerScreenY || 0);
+    }
+
+    inStrip(x, y) {
+      const container = this.tabContainerElement();
+      const host = this.vertical
+        ? this.doc.getElementById("vertical-tabs-container")
+        : this.doc.getElementById("TabsToolbar");
+      const rect = (host || container).getBoundingClientRect();
+      return (
+        x >= rect.left &&
+        x <= rect.right &&
+        y >= rect.top &&
+        y <= rect.bottom
+      );
+    }
+
+    inToolbarDropTarget(event) {
+      const target = event.target;
+      if (!target || !target.closest) {
+        return false;
+      }
+      return !!target.closest(TOOLBAR_DROP_TARGETS);
+    }
+
+    inTabDropZone(event) {
+      if (this.mode === "target") {
+        return false;
+      }
+      const target = event.target;
+      return !!target?.closest?.("#firegila-tab-dropzones");
+    }
+
+    onWindowDragEnter(event) {
+      if (!isTabDrag(event) || this.root.hasAttribute("taskbartab")) {
+        return;
+      }
+      if (!this.active) {
+        const element = draggedElement(event);
+        if (
+          !isDragElement(element) ||
+          !element._dragData ||
+          dragSourceWindow(element) === this.win ||
+          this.inToolbarDropTarget(event)
+        ) {
+          return;
+        }
+        const tabContainer = this.tabContainer();
+        const effect = tabContainer.tabDragAndDrop?.getDropEffectForTabDrag(
+          event
+        );
+        if (effect === "none") {
+          return;
+        }
+        try {
+          this.startTarget(element, event);
+        } catch (e) {
+          console.error("Firegila tab drag:", e);
+          this.cleanup();
+          return;
+        }
+      }
+      this.onWindowDragOver(event);
+    }
+
+    onWindowDragOver(event) {
+      if (!isTabDrag(event)) {
+        return;
+      }
+      if (!this.active) {
+        this.onWindowDragEnter(event);
+        return;
+      }
+      if (event.target === this.shield) {
+        return;
+      }
+      if (this.inTabDropZone(event)) {
+        this.hideHint();
+        this.clearGroupCandidate();
+        if (this.groupActive) {
+          this.clearGroupTarget();
+        }
+        return;
+      }
+      if (this.inToolbarDropTarget(event)) {
+        this.hideHint();
+        this.clearGroupCandidate();
+        if (this.groupActive) {
+          this.clearGroupTarget();
+        }
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      this.setPointer(event);
+      if (this.inStrip(this.pointerX, this.pointerY)) {
+        this.hideHint();
+        this.updateVisuals(true);
+        return;
+      }
+      if (this.mode === "target") {
+        this.showHint();
+        this.updateVisuals(false);
+        return;
+      }
+      this.showHint();
+      this.updateVisuals(false);
+    }
+
+    onWindowDragLeave(event) {
+      if (!isTabDrag(event) || event.relatedTarget) {
+        return;
+      }
+      if (this.dragImage) {
+        this.dragImage.style.visibility = "hidden";
+      }
+      if (this.mode === "target" && this.active) {
+        this.cleanup();
+        return;
+      }
+      if (this.active) {
+        this.hideHint();
+        this.clearGroupCandidate();
+        if (this.groupActive) {
+          this.clearGroupTarget();
+        }
+      }
+    }
+
+    onDocumentDrop(event) {
+      if (!this.active || !this.tab?._dragData) {
+        return;
+      }
+      if (this.inTabDropZone(event) || this.inToolbarDropTarget(event)) {
+        this.tab._dragData.firegilaHandled = true;
+        this.handled = true;
+        this.win.setTimeout(() => {
+          if (this.active) {
+            this.cleanup();
+          }
+        }, 0);
+      }
+    }
+
+    onWindowDrop(event) {
+      if (!this.active || !isTabDrag(event)) {
+        return;
+      }
+      if (event.target === this.shield) {
+        return;
+      }
+      if (this.inTabDropZone(event)) {
+        this.hideHint();
+        return;
+      }
+      if (this.inToolbarDropTarget(event)) {
+        this.hideHint();
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      this.setPointer(event);
+      if (this.mode === "target") {
+        this.commitTargetDrop();
+        return;
+      }
+      if (this.inStrip(this.pointerX, this.pointerY)) {
+        this.commitMove();
+        return;
+      }
+      this.prepareDetach();
+    }
+
+    onShieldDragOver(event) {
+      if (!this.active || !isTabDrag(event)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      this.setPointer(event);
+      this.showHint();
+      this.updateVisuals(false);
+    }
+
+    onShieldDragLeave(event) {
+      if (!this.active || event.relatedTarget) {
+        return;
+      }
+      this.hideHint();
+    }
+
+    onShieldDrop(event) {
+      if (!this.active || !isTabDrag(event)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "move";
+      this.setPointer(event);
+      if (this.mode === "target") {
+        this.commitTargetDrop();
+        return;
+      }
+      this.prepareDetach();
+    }
+
+    onDragEnd() {
+      if (!this.active || this.detachPending) {
+        this.detachPending = false;
+        return;
+      }
+      this.cleanup();
+    }
+
+    onScroll() {
+      if (!this.active || this.groupActive) {
+        return;
+      }
+      this.buildGeometry();
+      if (this.mode === "target" && this.ensureTargetSpacer()) {
+        this.buildGeometry();
+      }
+      this.applyLayout(this.insertIndex);
+      if (this.grid) {
+        this.positionGridPlaceholder();
+      } else {
+        this.positionPlaceholder(this.insertIndex);
+      }
+    }
+
+    onResize() {
+      this.refreshShield();
+      if (this.active && !this.groupActive) {
+        this.buildGeometry();
+        if (this.mode === "target" && this.ensureTargetSpacer()) {
+          this.buildGeometry();
+        }
+        this.applyLayout(this.insertIndex);
+        if (this.grid) {
+          this.positionGridPlaceholder();
+        } else {
+          this.positionPlaceholder(this.insertIndex);
+        }
+      }
+    }
+
+    showHint() {
+      if (this.hint) {
+        this.hint.hidden = false;
+      }
+      if (this.shield) {
+        this.shield.setAttribute("fg-active", "");
+      }
+    }
+
+    hideHint() {
+      if (this.hint) {
+        this.hint.hidden = true;
+      }
+      if (this.shield) {
+        this.shield.removeAttribute("fg-active");
+      }
+    }
+
+    others() {
+      return this.items.filter(
+        item => !this.movingElements.includes(item.element)
+      );
+    }
+
+    sourceCompactIndex() {
+      return this.mode === "move" ? this.sourceIndex : null;
+    }
+
+    compressedStart(item, compactIndex) {
+      const source = this.sourceCompactIndex();
+      let start = item.start;
+      if (source !== null && compactIndex >= source) {
+        start -= this.dragSize;
+      }
+      return start;
+    }
+
+    groupMovedSince(x, y) {
+      return Math.hypot(this.pointerX - x, this.pointerY - y) > GROUP_MOVE;
+    }
+
+    clearGroupDwell() {
+      if (this.groupDwellTimer) {
+        this.win.clearTimeout(this.groupDwellTimer);
+        this.groupDwellTimer = 0;
+      }
+      this.groupDwellItem = null;
+    }
+
+    startGroupDwell(item) {
+      this.clearGroupDwell();
+      this.groupDwellItem = item;
+      this.groupDwellX = this.pointerX;
+      this.groupDwellY = this.pointerY;
+      this.groupDwellTimer = this.win.setTimeout(() => {
+        this.groupDwellTimer = 0;
+        if (
+          !this.active ||
+          this.groupActive ||
+          this.groupDwellItem !== item ||
+          !item.element.isConnected
+        ) {
+          return;
+        }
+        this.groupDwellItem = null;
+        this.groupCandidate = item;
+        this.groupActive = true;
+        this.groupEl = item.element;
+        this.groupCueX = this.pointerX;
+        this.groupCueY = this.pointerY;
+        item.element.setAttribute("fg-group-candidate", "");
+        this.clearDropGap();
+      }, GROUP_DWELL);
+    }
+
+    updateGroupState(overStrip) {
+      if (
+        this.mode === "target" ||
+        !overStrip ||
+        this.grid ||
+        this.pinned
+      ) {
+        this.clearGroupDwell();
+        this.clearGroupCandidate();
+        if (this.groupActive) {
+          this.clearGroupTarget();
+        }
+        return false;
+      }
+      if (this.groupActive) {
+        if (
+          this.groupPointerLeft() ||
+          this.groupMovedSince(this.groupCueX, this.groupCueY)
+        ) {
+          this.clearGroupTarget();
+          this.clearGroupDwell();
+        } else {
+          this.clearDropGap();
+          return true;
+        }
+      } else if (this.groupCandidate) {
+        if (
+          this.groupMovedSince(this.groupCueX, this.groupCueY) ||
+          this.findGroupCandidate() !== this.groupCandidate
+        ) {
+          this.clearGroupCandidate();
+        } else {
+          this.clearDropGap();
+          return true;
+        }
+      }
+      const candidate = this.findGroupCandidate();
+      if (!candidate) {
+        this.clearGroupDwell();
+        this.clearGroupCandidate();
+        return false;
+      }
+      if (
+        this.groupDwellItem !== candidate ||
+        this.groupMovedSince(this.groupDwellX, this.groupDwellY)
+      ) {
+        this.startGroupDwell(candidate);
+      }
+      return false;
+    }
+
+    updateVisuals(overStrip) {
+      if (!this.active) {
+        return;
+      }
+      this.positionDragImage();
+      if (!overStrip) {
+        this.clearGroupDwell();
+        this.clearGroupCandidate();
+        if (this.groupActive) {
+          this.clearGroupTarget();
+        }
+        this.hidePlaceholder();
+        this.clearShifts();
+        this.removeTargetSpacer();
+        return;
+      }
+      if (this.updateGroupState(overStrip)) {
+        return;
+      }
+      if (this.mode === "target") {
+        let spacerChanged = false;
+        for (let pass = 0; pass < 3; pass++) {
+          if (!this.ensureTargetSpacer()) {
+            break;
+          }
+          spacerChanged = true;
+          this.buildGeometry();
+        }
+        if (spacerChanged) {
+          this.resetShiftsForMeasure();
+          this.buildGeometry();
+        }
+      } else {
+        this.removeTargetSpacer();
+      }
+      const index = this.computeInsertIndex();
+      if (index === null) {
+        return;
+      }
+      this.insertIndex = index;
+      if (this.grid) {
+        this.hidePlaceholder();
+        this.clearShifts();
+        return;
+      }
+      if (this.mode === "target") {
+        this.showPlaceholder();
+        this.applyLayout(index);
+        this.positionPlaceholder(index);
+        this.ensurePlaceholderVisible(index);
+      } else {
+        this.hidePlaceholder();
+        this.applyLayout(index);
+      }
+      this.ensureAutoScroll();
+    }
+
+    computeInsertIndex() {
+      const others = this.others();
+      if (this.grid) {
+        return this.computeGridIndex(others);
+      }
+      const vertical = this.vertical;
+      const coordinate = vertical ? this.pointerY : this.pointerX;
+      const source = this.sourceCompactIndex();
+      let next = others.length;
+      for (let i = 0; i < others.length; i++) {
+        const item = others[i];
+        const shift = this.shifts.get(item.shiftEl) || 0;
+        const start = item.start + shift;
+        const middle = start + item.size / 2;
+        if (coordinate < middle) {
+          next = i;
+          break;
+        }
+      }
+      const pinnedOthers = others.filter(item => item.index < this.win.gBrowser.pinnedTabCount).length;
+      if (this.pinned) {
+        if (this.pointerBeyondPinned()) {
+          next = pinnedOthers;
+        } else {
+          next = Math.max(0, Math.min(next, pinnedOthers));
+        }
+      } else {
+        next = Math.max(next, pinnedOthers);
+      }
+      if (this.pendingIndex === null) {
+        this.pendingIndex = next;
+        this.pendingCount = STABLE_COUNT;
+      } else if (next !== this.pendingIndex) {
+        this.pendingIndex = next;
+        this.pendingCount = 0;
+        return this.insertIndex;
+      }
+      if (this.pendingIndex !== this.insertIndex) {
+        this.pendingCount++;
+        if (this.pendingCount < STABLE_COUNT) {
+          return this.insertIndex;
+        }
+      }
+      this.pendingCount = 0;
+      return this.pendingIndex;
+    }
+
+    computeGridIndex(others) {
+      const pinned = others.filter(
+        item => item.index < this.win.gBrowser.pinnedTabCount
+      );
+      if (!pinned.length) {
+        return 0;
+      }
+      let best = pinned[0];
+      let bestDistance = Infinity;
+      for (const item of pinned) {
+        const dx = this.pointerX - item.centerX;
+        const dy = this.pointerY - item.centerY;
+        const distance = dx * dx + dy * dy;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = item;
+        }
+      }
+      this.gridTarget = best;
+      const after = this.pointerX > best.centerX;
+      const next = best.index + (after ? 1 : 0);
+      if (this.pendingIndex === null) {
+        this.pendingIndex = next;
+        this.pendingCount = STABLE_COUNT;
+      } else if (next !== this.pendingIndex) {
+        this.pendingIndex = next;
+        this.pendingCount = 0;
+        return this.insertIndex;
+      }
+      if (this.pendingIndex !== this.insertIndex) {
+        this.pendingCount++;
+        if (this.pendingCount < STABLE_COUNT) {
+          return this.insertIndex;
+        }
+      }
+      this.pendingCount = 0;
+      return this.pendingIndex;
+    }
+
+    pointerBeyondPinned() {
+      const pinned = this.items.filter(
+        item => item.index < this.win.gBrowser.pinnedTabCount
+      );
+      if (!pinned.length) {
+        return false;
+      }
+      const last = pinned[pinned.length - 1];
+      return this.vertical
+        ? this.pointerY > last.rect.bottom + 8
+        : this.pointerX > last.rect.right + 8;
+    }
+
+    ensureTargetSpacer() {
+      if (this.mode !== "target" || this.grid || this.pinned) {
+        return false;
+      }
+      const parent = this.tabContainerCache.arrowScrollbox;
+      if (!parent) {
+        return false;
+      }
+      let changed = false;
+      if (!this.spacer) {
+        const spacer = this.doc.createElementNS(XHTML, "div");
+        spacer.className = "firegila-tab-drag-spacer";
+        spacer.setAttribute("aria-hidden", "true");
+        this.spacer = spacer;
+        changed = true;
+      }
+      const before = parent.querySelector(
+        ":scope > #tabbrowser-arrowscrollbox-periphery"
+      );
+      if (this.spacer.parentNode !== parent || this.spacer.nextSibling !== before) {
+        parent.insertBefore(this.spacer, before);
+        changed = true;
+      }
+      if (this.spacerSize !== this.dragSize) {
+        this.spacerSize = this.dragSize;
+        this.spacer.style.flex = `0 0 ${this.dragSize}px`;
+        if (this.vertical) {
+          this.spacer.style.width = "100%";
+          this.spacer.style.height = `${this.dragSize}px`;
+        } else {
+          this.spacer.style.width = `${this.dragSize}px`;
+          this.spacer.style.height = "100%";
+        }
+        changed = true;
+      }
+      return changed;
+    }
+
+    removeTargetSpacer() {
+      if (!this.spacer) {
+        return false;
+      }
+      this.spacer.remove();
+      this.spacer = null;
+      this.spacerSize = 0;
+      return true;
+    }
+
+    applyLayout(index) {
+      const others = this.others();
+      const source = this.sourceCompactIndex();
+      const vertical = this.vertical;
+      const size = this.dragSize;
+      for (let i = 0; i < others.length; i++) {
+        const item = others[i];
+        let start = item.start;
+        if (source !== null && i >= source) {
+          start -= size;
+        }
+        if (i >= index) {
+          start += size;
+        }
+        const shift = start - item.start;
+        const element = item.shiftEl;
+        const old = this.shifts.get(element) || 0;
+        if (shift === old && !shift) {
+          continue;
+        }
+        if (!shift && !old) {
+          continue;
+        }
+        element.style.transform = vertical
+          ? `translate3d(0, ${shift}px, 0)`
+          : `translate3d(${shift}px, 0, 0)`;
+        this.shifts.set(element, shift);
+      }
+    }
+
+    resetShiftsForMeasure() {
+      if (!this.shifts.size) {
+        return;
+      }
+      for (const element of this.shifts.keys()) {
+        element.style.transform = "";
+      }
+      this.shifts.clear();
+      this.tabContainerElement().getBoundingClientRect();
+    }
+
+    clearShifts() {
+      for (const element of this.shifts.keys()) {
+        element.style.transform = this.vertical
+          ? "translate3d(0, 0, 0)"
+          : "translate3d(0, 0, 0)";
+      }
+      this.shifts.clear();
+    }
+
+    placeholderGapStart(index) {
+      const others = this.others();
+      if (index < others.length) {
+        return this.compressedStart(others[index], index);
+      }
+      if (!others.length) {
+        if (!this.dragRect) {
+          return 0;
+        }
+        return this.vertical ? this.dragRect.top : this.dragRect.left;
+      }
+      const last = others[others.length - 1];
+      const lastStart = this.compressedStart(last, others.length - 1);
+      return lastStart + last.size;
+    }
+
+    positionPlaceholder(index) {
+      if (!this.placeholder) {
+        return;
+      }
+      const gap = this.placeholderGapStart(index);
+      const bg = this.dragBgRect || this.dragRect;
+      const vertical = this.vertical;
+      if (vertical) {
+        const along = this.placeholderFull ? this.dragSize : bg.height;
+        const top = gap + Math.max(0, (this.dragSize - along) / 2);
+        this.placeholder.style.left = `${bg.left}px`;
+        this.placeholder.style.top = `${top}px`;
+        this.placeholder.style.width = `${Math.max(0, bg.width)}px`;
+        this.placeholder.style.height = `${Math.max(24, along)}px`;
+      } else {
+        const along = this.placeholderFull ? this.dragSize : bg.width;
+        const left = gap + Math.max(0, (this.dragSize - along) / 2);
+        this.placeholder.style.left = `${left}px`;
+        this.placeholder.style.top = `${bg.top}px`;
+        this.placeholder.style.width = `${Math.max(24, along)}px`;
+        this.placeholder.style.height = `${Math.max(24, bg.height)}px`;
+      }
+    }
+
+    ensurePlaceholderVisible(index) {
+      if (!this.placeholder || this.placeholder.hidden) {
+        return;
+      }
+      const box = this.tabContainerCache.arrowScrollbox.getBoundingClientRect();
+      const bg = this.dragBgRect || this.dragRect;
+      if (!bg) {
+        return;
+      }
+      const vertical = this.vertical;
+      const gap = this.placeholderGapStart(index);
+      const along = this.placeholderFull
+        ? this.dragSize
+        : vertical
+          ? bg.height
+          : bg.width;
+      const start = gap + Math.max(0, (this.dragSize - along) / 2);
+      let delta = 0;
+      if (vertical) {
+        if (start < box.top) {
+          delta = start - box.top;
+        } else if (start + along > box.bottom) {
+          delta = start + along - box.bottom;
+        }
+      } else if (start < box.left) {
+        delta = start - box.left;
+      } else if (start + along > box.right) {
+        delta = start + along - box.right;
+      }
+      if (delta) {
+        this.tabContainerCache.arrowScrollbox.scrollByPixels(delta);
+      }
+    }
+
+    positionGridPlaceholder() {
+      if (!this.placeholder) {
+        return;
+      }
+      const item = this.gridTarget;
+      if (!item) {
+        this.hidePlaceholder();
+        return;
+      }
+      const rect = item.rect;
+      this.placeholder.style.left = `${rect.left + 3}px`;
+      this.placeholder.style.top = `${rect.top + 3}px`;
+      this.placeholder.style.width = `${Math.max(0, rect.width - 6)}px`;
+      this.placeholder.style.height = `${Math.max(0, rect.height - 6)}px`;
+      this.showPlaceholder();
+    }
+
+    showPlaceholder() {
+      if (this.placeholder) {
+        this.placeholder.hidden = false;
+      }
+    }
+
+    hidePlaceholder() {
+      if (this.placeholder) {
+        this.placeholder.hidden = true;
+      }
+    }
+
+    findGroupCandidate() {
+      if (this.grid || this.pinned || isGroupLabel(this.tab)) {
+        return null;
+      }
+      const vertical = this.vertical;
+      for (const item of this.others()) {
+        if (item.index < this.win.gBrowser.pinnedTabCount) {
+          continue;
+        }
+        const element = item.element;
+        if (!isTab(element) && !isGroupLabel(element)) {
+          continue;
+        }
+        if (this.movingGroup && groupForElement(element) === this.movingGroup) {
+          continue;
+        }
+        if (isTab(element) && element.group?.collapsed) {
+          continue;
+        }
+        const rect = element.getBoundingClientRect();
+        const inX =
+          this.pointerX >= rect.left && this.pointerX <= rect.right;
+        const inY =
+          this.pointerY >= rect.top && this.pointerY <= rect.bottom;
+        if (!inX || !inY) {
+          continue;
+        }
+        const start = vertical ? rect.top : rect.left;
+        const size = vertical ? rect.height : rect.width;
+        const ratio = size
+          ? ((vertical ? this.pointerY : this.pointerX) - start) / size
+          : 0.5;
+        if (ratio < GROUP_CENTER || ratio > 1 - GROUP_CENTER) {
+          continue;
+        }
+        return item;
+      }
+      return null;
+    }
+
+    clearDropGap() {
+      this.hidePlaceholder();
+      this.clearShifts();
+    }
+
+    groupPointerLeft() {
+      if (!this.groupEl) {
+        return true;
+      }
+      const rect = this.groupEl.getBoundingClientRect();
+      return (
+        this.pointerX < rect.left - GROUP_LEAVE ||
+        this.pointerX > rect.right + GROUP_LEAVE ||
+        this.pointerY < rect.top - GROUP_LEAVE ||
+        this.pointerY > rect.bottom + GROUP_LEAVE
+      );
+    }
+
+    clearGroupCandidate() {
+      this.clearGroupDwell();
+      if (this.groupCandidate && !this.groupActive) {
+        this.groupCandidate.element.removeAttribute("fg-group-candidate");
+        this.groupCandidate = null;
+      }
+    }
+
+    clearGroupTarget() {
+      this.clearGroupDwell();
+      if (this.groupCandidate) {
+        this.groupCandidate.element.removeAttribute("fg-group-candidate");
+        this.groupCandidate = null;
+      }
+      if (this.groupEl) {
+        this.groupEl.removeAttribute("dragover-groupTarget");
+      }
+      this.tabContainerElement().removeAttribute("movingtab-group");
+      this.groupEl = null;
+      this.groupActive = false;
+    }
+
+    ensureAutoScroll() {
+      if (this.scrollTimer) {
+        return;
+      }
+      this.tickAutoScroll();
+    }
+
+    tickAutoScroll() {
+      this.scrollTimer = 0;
+      if (
+        !this.active ||
+        this.groupActive ||
+        this.groupCandidate ||
+        !this.inStrip(this.pointerX, this.pointerY)
+      ) {
+        return;
+      }
+      const box = this.tabContainerElement().arrowScrollbox;
+      if (!box.hasAttribute("overflowing")) {
+        return;
+      }
+      const rect = box.getBoundingClientRect();
+      let delta = 0;
+      if (this.vertical) {
+        if (this.pointerY < rect.top + EDGE_SCROLL) {
+          delta = -SCROLL_STEP;
+        } else if (this.pointerY > rect.bottom - EDGE_SCROLL) {
+          delta = SCROLL_STEP;
+        }
+      } else if (this.pointerX < rect.left + EDGE_SCROLL) {
+        delta = -SCROLL_STEP;
+      } else if (this.pointerX > rect.right - EDGE_SCROLL) {
+        delta = SCROLL_STEP;
+      }
+      if (!delta) {
+        this.placeholder?.classList.remove("fg-no-transition");
+        return;
+      }
+      this.placeholder?.classList.add("fg-no-transition");
+      box.scrollByPixels(delta);
+      this.scrollTimer = this.win.requestAnimationFrame(() => {
+        this.buildGeometry();
+        if (!this.grid) {
+          this.applyLayout(this.insertIndex);
+          this.positionPlaceholder(this.insertIndex);
+        } else {
+          this.positionGridPlaceholder();
+        }
+        this.tickAutoScroll();
+      });
+    }
+
+    watch() {
+      if (this.watchTimer) {
+        return;
+      }
+      this.watchTimer = this.win.setInterval(() => {
+        if (!this.active || this.testMode) {
+          return;
+        }
+        if (!dragServiceActive()) {
+          this.cleanup();
+        }
+      }, 300);
+    }
+
+    commitMove() {
+      if (!this.active || this.mode !== "move") {
+        return;
+      }
+      if (this.groupActive) {
+        this.commitGroup();
+        return;
+      }
+      if (this.grid) {
+        this.commitGrid();
+        return;
+      }
+      const others = this.others();
+      const index = this.insertIndex;
+      const moving = this.movingElements;
+      const gb = this.win.gBrowser;
+      const singleTab =
+        moving.length === 1 && isTab(moving[0]) ? moving[0] : null;
+      let unpin = false;
+      if (singleTab?.pinned && this.pointerBeyondPinned()) {
+        unpin = true;
+      }
+      if (unpin) {
+        gb.unpinTab(singleTab);
+        const firstUnpinned = gb.tabs.find(
+          candidate =>
+            !candidate.pinned && candidate !== singleTab && !candidate.closing
+        );
+        if (firstUnpinned) {
+          gb.moveTabsBefore([singleTab], firstUnpinned);
+        }
+      } else if (this.movingPinned) {
+        const pinnedOthers = others.filter(
+          item => item.index < gb.pinnedTabCount
+        );
+        if (index < pinnedOthers.length) {
+          gb.moveTabsBefore(moving, pinnedOthers[index].element);
+        } else if (pinnedOthers.length) {
+          gb.moveTabsAfter(moving, pinnedOthers[pinnedOthers.length - 1].element);
+        }
+      } else if (index < others.length) {
+        gb.moveTabsBefore(moving, others[index].element);
+      } else if (others.length) {
+        gb.moveTabsAfter(moving, others[others.length - 1].element);
+      }
+      this.finishHandled();
+    }
+
+    commitGrid() {
+      const tab = this.tab;
+      const gb = this.win.gBrowser;
+      const target = this.items.find(
+        item => item.index === this.insertIndex
+      );
+      if (target) {
+        gb.moveTabTo(tab, { elementIndex: target.index });
+      } else {
+        const lastPinned = this.items.filter(
+          item => item.index < gb.pinnedTabCount
+        ).at(-1);
+        if (lastPinned) {
+          gb.moveTabsAfter([tab], lastPinned.element);
+        }
+      }
+      this.finishHandled();
+    }
+
+    commitGroup() {
+      if (!this.active || !this.groupEl || isGroupLabel(this.tab)) {
+        this.finishHandled();
+        return;
+      }
+      const moving = this.movingElements;
+      const target = this.groupEl;
+      const gb = this.win.gBrowser;
+      if (isGroupLabel(target)) {
+        target.group.addTabs(moving);
+      } else if (target.group) {
+        target.group.addTabs(moving);
+      } else {
+        const rect = target.getBoundingClientRect();
+        const before = this.vertical
+          ? this.pointerY < rect.top + rect.height / 2
+          : this.pointerX < rect.left + rect.width / 2;
+        gb.addTabGroup(before ? [...moving, target] : [target, ...moving], {
+          insertBefore: target,
+          isUserTriggered: true,
+          color: gb.tabGroupMenu.nextUnusedColor,
+          telemetryUserCreateSource: "drag",
+        });
+      }
+      this.finishHandled();
+    }
+
+    finishHandled() {
+      this.handled = true;
+      if (this.tab?._dragData) {
+        this.tab._dragData.firegilaHandled = true;
+      }
+      this.cleanup();
+    }
+
+    prepareDetach() {
+      if (!this.active || this.mode !== "move") {
+        return;
+      }
+      if (this.tab?._dragData) {
+        this.tab._dragData.firegilaDetach = true;
+      }
+      this.detachPending = true;
+      this.cleanup();
+    }
+
+    commitTargetDrop() {
+      if (!this.active || this.mode !== "target") {
+        return;
+      }
+      const primary = this.tab;
+      const moving = this.movingElements.slice();
+      for (const item of moving) {
+        item.style.visibility = "";
+        item.removeAttribute("fg-tab-dragging");
+      }
+      resetGroupDragState(primary);
+      const gb = this.win.gBrowser;
+      const others = this.others();
+      let target = null;
+      if (this.insertIndex < others.length) {
+        target = others[this.insertIndex].element;
+      }
+      if (isGroupLabel(primary)) {
+        try {
+          gb.adoptTabGroup(
+            primary.group,
+            target
+              ? { elementIndex: target.elementIndex }
+              : { elementIndex: gb.tabs.length }
+          );
+        } catch (e) {
+          console.error("Firegila tab drag adopt group:", e);
+        }
+      } else {
+        let index = target ? target.elementIndex : gb.tabs.length;
+        const adopted = [];
+        for (const item of moving) {
+          try {
+            if (isTab(item)) {
+              const newTab = gb.adoptTab(item, {
+                elementIndex: index,
+                selectTab: item === this.primaryTab,
+              });
+              if (newTab) {
+                adopted.push(newTab);
+                index++;
+              }
+            } else if (isSplitView(item)) {
+              const newView = gb.adoptSplitView(item, {
+                elementIndex: index,
+                selectTab: true,
+              });
+              if (newView) {
+                adopted.push(newView);
+                index++;
+              }
+            }
+          } catch (e) {
+            console.error("Firegila tab drag adopt:", e);
+          }
+        }
+        if (adopted.length && this.groupActive && this.groupEl) {
+          if (isGroupLabel(this.groupEl)) {
+            this.groupEl.group.addTabs(adopted);
+          } else if (this.groupEl.group) {
+            this.groupEl.group.addTabs(adopted);
+          } else {
+            const rect = this.groupEl.getBoundingClientRect();
+            const before = this.vertical
+              ? this.pointerY < rect.top + rect.height / 2
+              : this.pointerX < rect.left + rect.width / 2;
+            gb.addTabGroup(
+              before
+                ? [...adopted, this.groupEl]
+                : [this.groupEl, ...adopted],
+              {
+                insertBefore: this.groupEl,
+                isUserTriggered: true,
+                color: gb.tabGroupMenu.nextUnusedColor,
+                telemetryUserCreateSource: "drag",
+              }
+            );
+          }
+        }
+      }
+      if (primary._dragData) {
+        primary._dragData.firegilaHandled = true;
+      }
+      this.win.focus();
+      this.finishHandled();
+    }
+
+    cleanup() {
+      this.root.removeAttribute("fg-target-drag");
+      if (!this.active && !this.placeholder && !this.shield && !this.dragImage) {
+        return;
+      }
+      const targetMode = this.mode === "target";
+      this.clearGroupDwell();
+      if (this.scrollTimer) {
+        this.win.cancelAnimationFrame(this.scrollTimer);
+        this.scrollTimer = 0;
+      }
+      if (this.watchTimer) {
+        this.win.clearInterval(this.watchTimer);
+        this.watchTimer = 0;
+      }
+      if (this.groupEl) {
+        this.groupEl.removeAttribute("dragover-groupTarget");
+        this.groupEl = null;
+      }
+      for (const element of this.doc.querySelectorAll(
+        "[dragover-groupTarget], [fg-group-candidate]"
+      )) {
+        element.removeAttribute("dragover-groupTarget");
+        element.removeAttribute("fg-group-candidate");
+      }
+      this.groupActive = false;
+      this.groupCandidate = null;
+      const container = this.tabContainerElement();
+      if (container) {
+        container.removeAttribute("movingtab-group");
+        container.removeAttribute("movingtab");
+        container.removeAttribute("fg-custom-tab-drag");
+        for (const element of container.querySelectorAll(
+          ".tabbrowser-tab, .tab-group-label-container, tab-split-view-wrapper"
+        )) {
+          element.style.transform = "";
+        }
+      }
+      for (const element of this.shifts.keys()) {
+        element.style.transform = "";
+      }
+      this.shifts.clear();
+      this.win.gNavToolbox?.removeAttribute("movingtab");
+      this.root.removeAttribute("fg-custom-tab-drag");
+      if (!targetMode) {
+        for (const item of this.movingElements) {
+          item.style.visibility = "";
+          item.removeAttribute("fg-tab-dragging");
+        }
+        resetGroupDragState(this.groupDragLabel);
+      }
+      this.removeTargetSpacer();
+      if (this.placeholder) {
+        this.placeholder.remove();
+        this.placeholder = null;
+      }
+      if (this.shield) {
+        this.shield.remove();
+        this.shield = null;
+        this.hint = null;
+      }
+      if (this.dragImage) {
+        this.dragImage.remove();
+        this.dragImage = null;
+      }
+      if (this.nativeDragImage) {
+        this.nativeDragImage.remove();
+        this.nativeDragImage = null;
+      }
+      this.active = false;
+      this.mode = "";
+      this.tab = null;
+      this.movingElements = [];
+      this.movingCount = 0;
+      this.primaryTab = null;
+      this.movingGroup = null;
+      this.movingPinned = false;
+      this.hasPinned = false;
+      this.block = false;
+      this.placeholderFull = false;
+      this.groupDragLabel = null;
+      this.splitDrag = false;
+      this.sourceIndexes = [];
+      this.dragImageRect = null;
+      this.dragImageBgRect = null;
+      this.dt = null;
+      this.sourceWindow = null;
+      this.elements = [];
+      this.items = [];
+      this.insertIndex = 0;
+      this.pendingIndex = null;
+      this.pendingCount = 0;
+      this.gridTarget = null;
+      this.detachPending = false;
+      this.handled = false;
+    }
+  }
+
+  window.addEventListener(
+    "load",
+    () => {
+      if (!window.FiregilaTabDrag) {
+        window.FiregilaTabDrag = new FiregilaTabDragController(window);
+      }
+    },
+    { once: true }
+  );
+})();
+
+"""
+
 BOOKMARK_CONTEXT_CSS = """
 #placesContext_cut,
 #placesContext_copy,
@@ -10638,7 +13232,60 @@ treechildren::-moz-tree-row(current, focus) {
 """
 
 
+CLEAN_UI_CSS = """
+/* Removed features. No visible entry point remains. */
+#sidebar-switcher-tabs,
+#sync-tabs-menuitem,
+#allTabsMenu-syncedTabs,
+#menu_openFirefoxView,
+#BMB_viewBookmarksToolbar,
+#BMB_bookmarksToolbar,
+#BMB_unsortedBookmarks,
+#bookmarksToolbarFolderMenu,
+#bookmarksToolbarSeparator,
+#PersonalToolbar,
+[toolbarId="PersonalToolbar"],
+#toggle_PersonalToolbar,
+#show-other-bookmarks_PersonalToolbar,
+#context_reopenInContainer,
+#context-openlinkincontainertab,
+#context-openlinkinusercontext-menu,
+#sidebar-history-context-menu-container-tab,
+#sidebar-bookmarks-context-open-in-container-tab,
+#sidebar-synced-tabs-context-menu-container-tab,
+[id="placesContext_open:newcontainertab"],
+#menu_newUserContext,
+#urlbarView-context-menu-open-in-container-tab,
+#PanelUI-fxa-menu-services,
+#PanelUI-fxa-cta-menu,
+#PanelUI-fxa-remotetabs-deck,
+#PanelUI-remote-tabs-separator,
+#syncEngineBookmarks,
+#syncEngineTabs,
+.sync-engine-bookmarks,
+.sync-engine-tabs {
+  display: none !important;
+}
+"""
+
 COMPACT_APP_CSS = """
+/* Firegila app windows keep one top bar. No tab strip, tabs column or
+ * sidebar, so the window reads as a site window and not a browser window. */
+:root[taskbartab] #TabsToolbar,
+:root[taskbartab] #tabbrowser-tabs,
+:root[taskbartab] #vertical-tabs-container,
+:root[taskbartab] #sidebar-container,
+:root[taskbartab] #sidebar-box,
+:root[taskbartab] #sidebar-splitter,
+:root[taskbartab] #sidebar-main,
+:root[taskbartab] #sidebar-button {
+  display: none !important;
+}
+
+:root[taskbartab] #taskbar-tabs-button {
+  display: none !important;
+}
+
 /* Firegila compact app window. Taskbar Tabs hides the tab strip. Keep the
  * identity chip and the app action, hide the URL text until Ctrl+L. The title
  * is centered over the whole nav bar, not over the free space after the
@@ -10820,7 +13467,10 @@ patch_jar(BUILD / "browser/omni.ja", BROWSER_EDITS, REMOVE_DIRS_BROWSER, ART_SVG
                    ("localization/en-US/browser/newtab/newtab.ftl", "\nnewtab-menu-delete-shortcut = Delete shortcut\n"),
                    ("localization/en-US/browser/preferences/preferences.ftl", "\nfiregila-shortcuts-section = Shortcuts\n    .heading = Shortcuts\nfiregila-shortcuts-heading = Keyboard shortcuts\nfiregila-shortcuts-description = Common shortcuts. Select a field and press a new combination.\nfiregila-shortcuts-reset = Reset\nfiregila-shortcuts-reset-all = Reset all shortcuts\nfiregila-shortcuts-empty = No shortcut\nfiregila-shortcuts-duplicate = Already used by another shortcut.\nfiregila-shortcuts-loading = Loading shortcuts...\nfiregila-shortcuts-no-window = Open a browser window to edit shortcuts.\nfiregila-shortcuts-filter =\n    .placeholder = Filter shortcuts\nfiregila-shortcuts-category-tabs = Tabs\nfiregila-shortcuts-category-navigation = Navigation\nfiregila-shortcuts-category-page = Page\nfiregila-shortcuts-category-tools = Tools\nfiregila-shortcuts-category-window = Window\nfiregila-shortcuts-category-editing = Editing\nfiregila-shortcuts-no-results = No shortcuts match.\nfiregila-shortcuts-or = or\nperformance-allow-vaapi =\n    .label = Use hardware video decoding (VA-API)\n    .description = Requires a supported GPU driver. Restart required.\nfiregila-data-kept =\n    .message = Firegila keeps cookies, history, tabs and passwords. Nothing is cleared on exit.\n"),
                    ("chrome/browser/content/browser/browser.js", FIREGILA_APP_JS),
+                   ("chrome/browser/content/browser/browser.js", FIREGILA_TABDRAG_JS),
                    ("chrome/browser/skin/classic/browser/browser-shared.css", COMPACT_APP_CSS),
+                   ("chrome/browser/skin/classic/browser/browser-shared.css", CLEAN_UI_CSS),
+                   ("chrome/browser/skin/classic/browser/preferences/preferences.css", CLEAN_UI_CSS),
                    ("chrome/browser/skin/classic/browser/browser-shared.css", BOOKMARK_CONTEXT_CSS),
                    ("chrome/browser/skin/classic/browser/browser-shared.css", BOOKMARK_MENU_HIDE_CSS),
                    ("chrome/browser/skin/classic/browser/browser-shared.css", BOOKMARK_UI_CSS),

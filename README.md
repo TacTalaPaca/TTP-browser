@@ -15,10 +15,13 @@ Firegila/
   CHANGELOG.md             # release history
   LICENSE                  # MPL-2.0
   DEV.md                   # commands for working on the project
-  app-icons/               # firegila-512/1024/2048.png (transparent masters)
-  branding/                # desktop entry, launcher, newtab pattern
+  assets/                  # desktop entry, launcher, newtab pattern, uBlock
+  assets/icons/            # firegila-512/1024/2048.png (transparent masters)
   configs/                 # policies.json, firegila.js, distribution.ini
-  packaging/               # deb, rpm, arch, appimage and metainfo templates
+  packaging/               # declarative package templates and metadata
+    common/                # shared metadata for every format
+    deb/ rpm/ arch/        # format templates
+    appimage/              # AppImage template and pinned tool
   scripts/
     fetch-esr.sh           # download + SHA256 verify
     customize.sh           # unpack + rebrand + icons + configs
@@ -28,11 +31,12 @@ Firegila/
     package.sh             # build every package format
     packages/              # one script per format
     check-commit.sh        # git hygiene before a commit
+    check-ui.py            # headless UI checks on the built browser
     install.sh             # install a packaged tarball
   dev                      # dev only, fresh profile run, never shipped
   sources/                 # upstream tarball (gitignored)
   build/firefox            # customized tree (gitignored)
-  packages/<version>/      # release packages (gitignored)
+  dist/                    # release packages (gitignored)
 ```
 
 Quick start:
@@ -42,21 +46,21 @@ Quick start:
 ./scripts/customize.sh
 ./build/firefox/firegila --no-remote --profile /tmp/firegila-check
 ./scripts/package.sh
-./scripts/install.sh packages/<version>/firegila-<version>-linux-x86_64.tar.xz
+./scripts/install.sh dist/firegila-<version>-linux-x86_64.tar.xz
 firegila
 ```
 
 Notes:
 - `DEV.md` has every build, test, packaging and upgrade command.
-- Releases are built into `packages/<version>/`: deb, rpm, Arch package,
-  AppImage, portable tarball, `SHA256SUMS` and `BUILDINFO`.
+- Releases are built into `dist/`: deb, rpm, Arch package, AppImage,
+  portable tarball and `SHA256SUMS`.
 - `VERSION` is the Firegila release. `ESR_VERSION` is the Firefox base. They
   move independently.
 - `application.ini`: `Name=Firegila`, `Vendor=Firegila`, `RemotingName=firegila-esr`
   so profiles and locks stay separate from Firefox.
 - Enterprise policy lives at `distribution/policies.json` (`about:policies` to verify).
 - Default prefs live at `defaults/pref/firegila.js` (overridable by the user).
-- Window icons regenerated from `app-icons/firegila-2048.png`.
+- Window icons regenerated from `assets/icons/firegila-2048.png`.
 - Theme: neutral palette in Dark, Light and System themes, system accent, no brand colors.
   System follows the OS scheme with the same styles. Content pages follow the same palette.
 - Source is MPL-2.0, see `LICENSE`. The bundled Firefox binary keeps its own
@@ -78,7 +82,7 @@ changes are overlays on the unpacked tarball, applied by
   looks up in help articles (Firefox Account, Firefox View, Pocket) keep
   their stock names.
 - Icons, about page logo and wordmark are generated from
-  `app-icons/firegila-2048.png`.
+  `assets/icons/firegila-2048.png`.
 - Ships its own `.desktop` entry and launcher. Default profile is
   `$HOME/.firegila`. The launcher never deletes profiles.
 - `firegila.version` records the Firegila release. `firegila.build` records the
@@ -153,10 +157,10 @@ changes are overlays on the unpacked tarball, applied by
   does on every startup. The visibility setting is pinned to hide-sidebar, so
   the toolbar button stays a hide/show button in both tab orientations. The
   sidebar settings no longer offer the visibility switch.
-- Motion for the whole browser comes from one set of tokens (180ms base,
-  120ms fast, plain ease), shared by CSS transitions and every sidebar
-  animation, including the panel and customize view open and close. Honors
-  `sidebar.animation.enabled` and reduced motion.
+- Motion for the whole browser comes from one set of tokens (180ms panels,
+  140ms base, 80ms fast, plain ease), shared by CSS transitions and every
+  sliding panel, including the sidebar, the tabs column and the New Tab
+  customize view. Honors `sidebar.animation.enabled` and reduced motion.
 
 ### Workspaces
 
@@ -240,14 +244,39 @@ changes are overlays on the unpacked tarball, applied by
 
 - Scroll over the tab strip switches tabs, and over the workspace switcher
   switches workspaces. Middle click starts autoscroll. All on by default.
-- Dragging a tab shows Split view and New window drop targets. Drop on either
-  to split the tab with its nearest tab or move it to a new window.
+- Dragging a tab inside its window keeps the drag ghost in the tab bar. The
+  row glides to the new order and uses no placeholder.
+- Dragging a tab from another window shows the tab ghost at the cursor and a
+  rounded placeholder in the destination strip. The target row resizes and
+  the placeholder stays inside the strip.
+- Holding a tab being reordered over another tab for half a second shows one
+  solid accent group cue. Moving again hides the cue. Drop to add the tab to
+  that group or create a new group with both tabs. Group creation is only
+  available when reordering inside one window.
+- Dropping on the page shows a New window overlay and opens the tab in a new
+  window. Dropping on another Firegila window moves the tab into that window.
+  Vertical mode still shows the Split view and New window drop targets.
+- Pinned tabs stay in the pinned area. In horizontal and vertical list modes,
+  dragging a pinned tab to the unpinned strip unpins it. The vertical pinned
+  grid reorders inside the grid.
+- Group labels, split view wrappers, multi-selected tabs and tab list drags use
+  the same group and cross-window handling. Local reorders stay placeholder
+  free.
+- A cross-window drop reserves the destination slot, so the row shrinks and
+  the placeholder stays inside the strip. Over the page it shows only the
+  window hint.
+- The row width settles before the drag is measured, so the placeholder and
+  the shifted tabs share one geometry. The placeholder follows strip scroll.
+- New tab buttons hide during a drag.
 - Settings > Shortcuts lists common browser shortcuts by category, with a
   filter and a reset for each entry. Each one can be rebound, and the choice
   is stored per profile.
+- F12 opens Developer Tools docked on the right. The dock can still be moved
+  from the toolbox menu.
 - Copy Page Link sits in the page context menu and on Ctrl+Shift+L.
 - Session restore is on by default. The next start reopens the same windows
   and tabs, including tabs hidden in other workspaces, and loads them all.
+  Tab groups keep their workspace, order and collapsed state.
   Users can still choose a fresh start in settings.
 
 ### App windows
@@ -255,7 +284,9 @@ changes are overlays on the unpacked tarball, applied by
 - Firefox Taskbar Tabs is enabled on Linux. The URL bar page action and the
   hamburger menu install the current site as an app window.
 - The app window reads the site manifest for the name and icon, opens one tab,
-  hides the tab strip, and uses `display-mode: minimal-ui`.
+  and uses `display-mode: minimal-ui`.
+- App windows keep one top bar. The tab strip, the tabs column and the sidebar
+  are hidden, and the page fills the rest of the window.
 - Compact chrome hides the URL text and keeps the identity chip. Ctrl+L shows
   the full address bar. Escape or clicking the page collapses it again.
 - Back, forward and reload sit together. The identity chip follows them. The
@@ -265,7 +296,18 @@ changes are overlays on the unpacked tarball, applied by
   workspaces stay. Uninstalling an app removes the desktop entry and registry
   entry only. Site data is not touched.
 - The desktop entry is named `firegila.webapp-*` and sets `StartupWMClass` so
-  the taskbar matches the app icon.
+  the taskbar matches the app icon. It sets `NoDisplay` and a Web Browser
+  category, so it never appears in the Linux application menu or in Lost and
+  Found. Existing entries are updated once on the next start.
+
+### Sync
+
+- Firefox Accounts and Sync stay on.
+- Passwords, history, addons, addresses and settings sync.
+- Bookmarks, Shortcuts, tabs and workspaces stay local. Their sync engines
+  are off and locked.
+- The Sync settings and sidebar show no Bookmarks, Tabs or Synced Tabs
+  entries.
 
 ### Fullscreen
 

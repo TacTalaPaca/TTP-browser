@@ -41,9 +41,9 @@ cp "$ROOT/configs/autoconfig.js" "$BUILD/defaults/pref/autoconfig.js"
 cp "$ROOT/configs/firegila.cfg" "$BUILD/firegila.cfg"
 
 # bundled extensions (installed on first run)
-if [ -d "$ROOT/extensions" ] && ls "$ROOT"/extensions/*.xpi >/dev/null 2>&1; then
+if [ -d "$ROOT/assets" ] && ls "$ROOT"/assets/*.xpi >/dev/null 2>&1; then
   mkdir -p "$BUILD/distribution/extensions"
-  cp "$ROOT"/extensions/*.xpi "$BUILD/distribution/extensions/"
+  cp "$ROOT"/assets/*.xpi "$BUILD/distribution/extensions/"
   echo "customize: bundled extensions -> $(ls "$BUILD/distribution/extensions" | tr '\n' ' ')"
 fi
 
@@ -59,7 +59,7 @@ import sys
 from PIL import Image
 from pathlib import Path
 root, build = Path(sys.argv[1]), Path(sys.argv[2])
-master = Image.open(root / "app-icons" / "firegila-2048.png").convert("RGBA")
+master = Image.open(root / "assets/icons" / "firegila-2048.png").convert("RGBA")
 d = build / "browser" / "chrome" / "icons" / "default"
 d.mkdir(parents=True, exist_ok=True)
 for s in (16, 32, 48, 64, 128):
@@ -68,7 +68,7 @@ print("icons: replaced", sorted(p.name for p in d.glob("default*.png")))
 EOF
 
 # launcher
-cp "$ROOT/branding/firegila-launcher.sh" "$BUILD/firegila"
+cp "$ROOT/assets/firegila-launcher.sh" "$BUILD/firegila"
 chmod +x "$BUILD/firegila"
 
 echo "customize: done -> $BUILD"
