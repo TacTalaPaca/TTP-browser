@@ -96,6 +96,13 @@ def check_static_css():
             "chrome/toolkit/skin/classic/global/design-system/tokens-shared.css"
         ).decode()
     check("css panel motion token", "--fg-motion-panel: 180ms" in tokens)
+    version_file = ROOT / "build" / "firefox" / "firegila.version"
+    check(
+        "installed version marker",
+        version_file.exists()
+        and version_file.read_text().strip() == (ROOT / "VERSION").read_text().strip(),
+        str(version_file),
+    )
 
 
 def check_bundled_extension():
@@ -330,6 +337,64 @@ def drag_body(dragged, target_x, target_y, check_during=""):
     await new Promise(r => setTimeout(r, 80));
     {check_during}
     """
+
+
+def test_launcher_cache():
+    temp = Path(tempfile.mkdtemp(prefix="firegila launcher "))
+    try:
+        launcher = temp / "firegila"
+        shutil.copy(ROOT / "assets" / "firegila-launcher.sh", launcher)
+        launcher.chmod(0o755)
+        (temp / "firegila.version").write_text("1.4\n")
+        fake = temp / "firefox"
+        fake.write_text("#!/bin/sh\nexit 0\n")
+        fake.chmod(0o755)
+
+        first = temp / "first"
+        (first / "startupCache").mkdir(parents=True)
+        (first / ".firegila-version").write_text("1.3\n")
+        subprocess.run(
+            [str(launcher), "--profile", str(first)],
+            check=True,
+            timeout=20,
+        )
+        check(
+            "launcher purges cache on update",
+            not (first / "startupCache").exists()
+            and (first / ".firegila-version").read_text().strip() == "1.4",
+            str(first),
+        )
+
+        second = temp / "second"
+        (second / "startupCache").mkdir(parents=True)
+        (second / ".firegila-version").write_text("1.4\n")
+        subprocess.run(
+            [str(launcher), "--profile", str(second)],
+            check=True,
+            timeout=20,
+        )
+        check(
+            "launcher keeps cache on same version",
+            (second / "startupCache").exists()
+            and (second / ".firegila-version").read_text().strip() == "1.4",
+            str(second),
+        )
+
+        third = temp / "third"
+        (third / "startupCache").mkdir(parents=True)
+        subprocess.run(
+            [str(launcher), "--profile", str(third)],
+            check=True,
+            timeout=20,
+        )
+        check(
+            "launcher purges cache without marker",
+            not (third / "startupCache").exists()
+            and (third / ".firegila-version").read_text().strip() == "1.4",
+            str(third),
+        )
+    finally:
+        shutil.rmtree(temp, ignore_errors=True)
 
 
 def test_horizontal():
@@ -1764,7 +1829,8 @@ def test_chrome_layout():
             : null,
           devtoolsHost: Services.prefs.getStringPref("devtools.toolbox.host"),
           devtoolsPrevious: Services.prefs.getStringPref("devtools.toolbox.previousHost"),
-          devtoolsMigration: Services.prefs.getBoolPref("firegila.migration.devtoolsHost.v1", false),
+          profileSchema: Services.prefs.getIntPref("firegila.schema", -1),
+          devtoolsGuard: Services.prefs.prefHasUserValue("firegila.migration.devtoolsHost.v1"),
         }));
         """)
         left_spacers = [
@@ -1839,7 +1905,74 @@ def test_chrome_layout():
             layout.get("devtoolsPrevious") == "bottom",
             str(layout),
         )
-        check("devtools migration", layout.get("devtoolsMigration") is True, str(layout))
+        check("profile schema", layout.get("profileSchema") == 2, str(layout))
+        check("devtools guard removed", layout.get("devtoolsGuard") is False, str(layout))
+    finally:
+        b.stop()
+        b.cleanup()
+
+
+def test_profile_migration():
+    b = Browser(COMMON_PREFS, "migration")
+    try:
+        m = b.start()
+        m.js("await new Promise(r => setTimeout(r, 3000)); done('ok');", 30000)
+        first = m.value(r"""
+        done(JSON.stringify({
+          schema: Services.prefs.getIntPref("firegila.schema", -1),
+        }));
+        """)
+        check("profile schema current", first.get("schema") == 2, str(first))
+
+        m.value(r"""
+        Services.prefs.setIntPref("firegila.schema", 0);
+        Services.prefs.setBoolPref("firegila.migration.strictTracking", true);
+        Services.prefs.setBoolPref("firegila.migration.strictTracking.v2", true);
+        Services.prefs.setBoolPref("firegila.migration.globalPrivacyControl", true);
+        Services.prefs.setBoolPref("firegila.migration.devtoolsHost.v1", true);
+        Services.prefs.setBoolPref("firegila.migration.defaultBookmarks", true);
+        Services.prefs.setBoolPref("firegila.migration.webappDesktopEntries.v1", true);
+        Services.prefs.setIntPref("firegila.sidebar.width", 640);
+        done('ok');
+        """)
+        b.stop()
+
+        m = b.start()
+        m.js("await new Promise(r => setTimeout(r, 3200)); done('ok');", 30000)
+        result = m.value(r"""
+        const guards = [
+          "firegila.migration.strictTracking",
+          "firegila.migration.strictTracking.v2",
+          "firegila.migration.globalPrivacyControl",
+          "firegila.migration.devtoolsHost.v1",
+          "firegila.migration.defaultBookmarks",
+          "firegila.migration.webappDesktopEntries.v1",
+        ];
+        done(JSON.stringify({
+          schema: Services.prefs.getIntPref("firegila.schema", -1),
+          guards: guards.map(name => Services.prefs.prefHasUserValue(name)),
+          width: Services.prefs.getIntPref("firegila.sidebar.width", 0),
+        }));
+        """)
+        check("profile schema after upgrade", result.get("schema") == 2, str(result))
+        check(
+            "legacy migration guards removed",
+            result.get("guards") and not any(result.get("guards")),
+            str(result),
+        )
+        check("user setting preserved", result.get("width") == 640, str(result))
+        b.stop()
+
+        m = b.start()
+        m.js("await new Promise(r => setTimeout(r, 2600)); done('ok');", 30000)
+        third = m.value(r"""
+        done(JSON.stringify({
+          schema: Services.prefs.getIntPref("firegila.schema", -1),
+          width: Services.prefs.getIntPref("firegila.sidebar.width", 0),
+        }));
+        """)
+        check("profile schema stable", third.get("schema") == 2, str(third))
+        check("user setting stable", third.get("width") == 640, str(third))
     finally:
         b.stop()
         b.cleanup()
@@ -1991,6 +2124,7 @@ def main():
         return 1
     check_static_css()
     check_bundled_extension()
+    test_launcher_cache()
     test_horizontal()
     test_horizontal_geometry()
     test_pinned()
@@ -1999,6 +2133,7 @@ def main():
     test_multi()
     test_vertical()
     test_chrome_layout()
+    test_profile_migration()
     test_session()
     test_app()
     print()

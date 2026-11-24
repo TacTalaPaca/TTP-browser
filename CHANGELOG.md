@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4
+
+- Added a profile schema migration so browser updates refresh profile state without a reinstall.
+- The launcher clears only the startup cache once when the installed product version changes.
+- Consolidated one-time profile migrations under `firegila.schema`.
+- Removed deprecated `firegila.migration.*` guard prefs after their steps complete.
+- User preferences, extensions, cookies, history, passwords, bookmarks, tabs and workspaces stay untouched.
+- Fresh profiles and profiles already on the current schema take no migration action.
+
 ## 1.3
 
 - Reworked tab dragging for horizontal, vertical, pinned, group, split and multi-selected tabs.

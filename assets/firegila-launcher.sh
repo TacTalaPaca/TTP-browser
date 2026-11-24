@@ -28,4 +28,16 @@ if [ "$HAS_PROFILE" -eq 0 ]; then
   set -- --profile "${HOME}/.firegila" "$@"
 fi
 
+# A product update rebuilds the startup cache once. Only the cache directory
+# is removed. Preferences and personal data stay.
+PRODUCT="$(cat "$DIR/firegila.version" 2>/dev/null || true)"
+if [ -n "$PRODUCT" ] && [ -n "$PROFILE_PATH" ]; then
+  MARKER="$PROFILE_PATH/.firegila-version"
+  SEEN="$(cat "$MARKER" 2>/dev/null || true)"
+  if [ "$SEEN" != "$PRODUCT" ]; then
+    rm -rf "$PROFILE_PATH/startupCache"
+    printf '%s\n' "$PRODUCT" > "$MARKER" 2>/dev/null || true
+  fi
+fi
+
 exec "$DIR/firefox" --class Firegila --name Firegila "$@"

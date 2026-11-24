@@ -67,8 +67,9 @@ for s in (16, 32, 48, 64, 128):
 print("icons: replaced", sorted(p.name for p in d.glob("default*.png")))
 EOF
 
-# launcher
+# launcher and installed product version
 cp "$ROOT/assets/firegila-launcher.sh" "$BUILD/firegila"
 chmod +x "$BUILD/firegila"
+printf '%s\n' "$PRODUCT" > "$BUILD/firegila.version"
 
 echo "customize: done -> $BUILD"

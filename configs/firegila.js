@@ -235,6 +235,11 @@ pref("extensions.webextensions.uuids", "{\"uBlock0@raymondhill.net\":\"d3f1c2b4-
 // sidebar and home buttons and duplicated the uBlock button, so it is left to
 // the defaults. Account button off, uBlock pinned by its manifest area.
 
+// Profile schema
+// Starts at 0 so the first run applies every migration. The runner raises it
+// after the steps complete and removes deprecated migration guards.
+pref("firegila.schema", 0);
+
 // Branding
 // @PRODUCT@ and @ESR@ are replaced by customize.sh from VERSION and
 // ESR_VERSION.

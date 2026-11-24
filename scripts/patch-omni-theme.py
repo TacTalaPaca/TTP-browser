@@ -6744,14 +6744,41 @@ SB_BOOTSTRAP_JS = """
     ["About Us", "https://www.mozilla.org/about/"],
   ];
 
+  // One profile schema drives every migration. Steps are never repeated.
+  // Deprecated migration guards are inputs for the first 1.4 run and are
+  // removed after the steps complete.
+  const SCHEMA_PREF = "firegila.schema";
+  const SCHEMA = 2;
+  const LEGACY_MIGRATION_PREFS = [
+    "firegila.migration.strictTracking",
+    STRICT_TRACKING_PREF,
+    GPC_PREF,
+    DEVTOOLS_HOST_PREF,
+    DEFAULT_BOOKMARKS_PREF,
+    WEBAPP_DESKTOP_PREF,
+  ];
+
+  function profileSchema() {
+    try {
+      return Services.prefs.getIntPref(SCHEMA_PREF, 0);
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function clearLegacyMigrationPrefs(names = LEGACY_MIGRATION_PREFS) {
+    for (const name of names) {
+      try {
+        Services.prefs.clearUserPref(name);
+      } catch (e) {}
+    }
+  }
+
   // Profiles made before the default bookmarks patch still carry the four
   // Mozilla defaults in a "Mozilla Firefox" folder under the bookmarks menu.
   // Existing profiles start on Standard. Move that exact stock value to
   // Strict once, and leave a custom or strict choice alone.
   function migrateStrictTracking() {
-    if (Services.prefs.getBoolPref(STRICT_TRACKING_PREF, false)) {
-      return;
-    }
     try {
       if (
         Services.prefs.getStringPref(
@@ -6765,15 +6792,11 @@ SB_BOOTSTRAP_JS = """
         );
       }
     } catch (e) {}
-    Services.prefs.setBoolPref(STRICT_TRACKING_PREF, true);
   }
 
   // Tell sites not to sell or share data. Existing profiles opt in once on
   // upgrade, and the default pref covers every new profile.
   function migrateGlobalPrivacyControl() {
-    if (Services.prefs.getBoolPref(GPC_PREF, false)) {
-      return;
-    }
     try {
       Services.prefs.setBoolPref(
         "privacy.globalprivacycontrol.functionality.enabled",
@@ -6781,16 +6804,12 @@ SB_BOOTSTRAP_JS = """
       );
       Services.prefs.setBoolPref("privacy.globalprivacycontrol.enabled", true);
     } catch (e) {}
-    Services.prefs.setBoolPref(GPC_PREF, true);
   }
 
   // Existing profiles keep the stock bottom dock after the default changes.
   // Move the exact stock value to the right once, then leave any later choice
   // alone.
   function migrateDevtoolsHost() {
-    if (Services.prefs.getBoolPref(DEVTOOLS_HOST_PREF, false)) {
-      return;
-    }
     try {
       if (
         Services.prefs.getStringPref("devtools.toolbox.host", "bottom") ===
@@ -6800,16 +6819,12 @@ SB_BOOTSTRAP_JS = """
       }
       Services.prefs.setStringPref("devtools.toolbox.previousHost", "bottom");
     } catch (e) {}
-    Services.prefs.setBoolPref(DEVTOOLS_HOST_PREF, true);
   }
 
   // Older builds left web app desktop entries in the application menu with
   // no category. Mark them hidden once. The files stay as taskbar identities
   // and icon sources, but no longer appear in the Linux application menu.
   async function migrateWebappDesktopEntries() {
-    if (Services.prefs.getBoolPref(WEBAPP_DESKTOP_PREF, false)) {
-      return;
-    }
     try {
       let dataHome = Services.env.get("XDG_DATA_HOME");
       if (!dataHome || !PathUtils.isAbsolute(dataHome)) {
@@ -6818,8 +6833,7 @@ SB_BOOTSTRAP_JS = """
       }
       const dir = PathUtils.join(dataHome, "applications");
       if (!(await IOUtils.exists(dir))) {
-        Services.prefs.setBoolPref(WEBAPP_DESKTOP_PREF, true);
-        return;
+        return true;
       }
       for (const path of await IOUtils.getChildren(dir)) {
         if (!path.endsWith(".desktop")) {
@@ -6858,18 +6872,15 @@ SB_BOOTSTRAP_JS = """
           await IOUtils.writeUTF8(path, lines.join("\\n"));
         }
       }
-      Services.prefs.setBoolPref(WEBAPP_DESKTOP_PREF, true);
+      return true;
     } catch (e) {
-      // Retry on the next start.
+      return false;
     }
   }
 
   // Remove exactly those once, so upgrades match a fresh install. User
   // bookmarks are left alone, the folder is dropped only when it ends empty.
   async function migrateDefaultBookmarks() {
-    if (Services.prefs.getBoolPref(DEFAULT_BOOKMARKS_PREF, false)) {
-      return;
-    }
     try {
       const { PlacesUtils } = ChromeUtils.importESModule(
         "resource://gre/modules/PlacesUtils.sys.mjs"
@@ -6907,7 +6918,6 @@ SB_BOOTSTRAP_JS = """
           try {
             await bookmarks.remove(node.guid);
           } catch (e) {
-            // Places is busy. Retry on the next start.
             return false;
           }
         }
@@ -6916,7 +6926,7 @@ SB_BOOTSTRAP_JS = """
 
       for (const guid of [bookmarks.menuGuid, bookmarks.toolbarGuid]) {
         if (!(await removeStock(guid))) {
-          return;
+          return false;
         }
       }
       for (const guid of stockFolders) {
@@ -6926,12 +6936,53 @@ SB_BOOTSTRAP_JS = """
         try {
           await bookmarks.remove(guid);
         } catch (e) {
-          return;
+          return false;
         }
       }
-      Services.prefs.setBoolPref(DEFAULT_BOOKMARKS_PREF, true);
+      return true;
     } catch (e) {
-      // Places is not ready yet. Retry on the next start.
+      return false;
+    }
+  }
+
+  async function runSchemaMigrations() {
+    let version = profileSchema();
+    if (version < 1) {
+      if (!Services.prefs.getBoolPref(STRICT_TRACKING_PREF, false)) {
+        migrateStrictTracking();
+      }
+      if (!Services.prefs.getBoolPref(GPC_PREF, false)) {
+        migrateGlobalPrivacyControl();
+      }
+      if (!Services.prefs.getBoolPref(DEVTOOLS_HOST_PREF, false)) {
+        migrateDevtoolsHost();
+      }
+      Services.prefs.setIntPref(SCHEMA_PREF, 1);
+      clearLegacyMigrationPrefs([
+        "firegila.migration.strictTracking",
+        STRICT_TRACKING_PREF,
+        GPC_PREF,
+        DEVTOOLS_HOST_PREF,
+      ]);
+      version = 1;
+    }
+    if (version < 2) {
+      const bookmarksDone =
+        Services.prefs.getBoolPref(DEFAULT_BOOKMARKS_PREF, false) ||
+        (await migrateDefaultBookmarks());
+      const webappDone =
+        Services.prefs.getBoolPref(WEBAPP_DESKTOP_PREF, false) ||
+        (await migrateWebappDesktopEntries());
+      if (bookmarksDone && webappDone) {
+        Services.prefs.setIntPref(SCHEMA_PREF, SCHEMA);
+        clearLegacyMigrationPrefs([
+          DEFAULT_BOOKMARKS_PREF,
+          WEBAPP_DESKTOP_PREF,
+        ]);
+      }
+    }
+    if (profileSchema() >= SCHEMA) {
+      clearLegacyMigrationPrefs();
     }
   }
 
@@ -7029,17 +7080,11 @@ SB_BOOTSTRAP_JS = """
     applyShortcuts();
     installShortcutApi();
     Services.prefs.addObserver(SHORTCUTS_PREF, applyShortcuts);
-    migrateDefaultBookmarks();
-    // user.js lands after the first window in some profiles. Run the privacy
-    // defaults again once startup has settled, guarded so they run once.
-    // Profiles carry their own prefs.js and user.js. Give them time to land
-    // before the one-time privacy migration reads the category.
+    // user.js lands after the first window in some profiles. Give it time to
+    // land before the schema runner reads or writes profile state.
     window.setTimeout(() => {
-      migrateStrictTracking();
-      migrateGlobalPrivacyControl();
-      migrateDevtoolsHost();
-      migrateWebappDesktopEntries();
-    }, 2000);
+      runSchemaMigrations();
+    }, 1200);
     watchSidebarHidden();
     watchRevealEnter();
     watchRevealLeave();

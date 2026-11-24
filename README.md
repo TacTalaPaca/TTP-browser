@@ -56,6 +56,10 @@ Notes:
   portable tarball and `SHA256SUMS`.
 - `VERSION` is the Firegila release. `ESR_VERSION` is the Firefox base. They
   move independently.
+- On a product version change, the launcher clears only `startupCache` once.
+  User settings, extensions and personal data stay.
+- Profile schema migrations remove deprecated Firegila-owned state and keep
+  user settings.
 - `application.ini`: `Name=Firegila`, `Vendor=Firegila`, `RemotingName=firegila-esr`
   so profiles and locks stay separate from Firefox.
 - Enterprise policy lives at `distribution/policies.json` (`about:policies` to verify).
